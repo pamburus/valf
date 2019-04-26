@@ -3,7 +3,7 @@
 [![GoDoc](https://godoc.org/github.com/pamburus/valf?status.svg)](https://godoc.org/github.com/pamburus/valf)
 [![Build Status](https://travis-ci.org/pamburus/valf.svg?branch=master)](https://travis-ci.org/pamburus/valf)
 [![Go Report Status](https://goreportcard.com/badge/github.com/pamburus/valf)](https://goreportcard.com/report/github.com/pamburus/valf)
-[![Coverage Status](https://coveralls.io/repos/github/pamburus/valf/badge.svg?branch=master&service=github)](https://coveralls.io/github/pamburus/valf?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/pamburus/valf/badge.svg?branch=master)](https://coveralls.io/github/pamburus/valf?branch=master)
 
 This package provides means for dealing with typified values with snapshotting capabilities uniformly and a way to get its type and value back using visitor pattern.
 
