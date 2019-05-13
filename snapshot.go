@@ -15,54 +15,54 @@ type Snapshotter interface {
 // Snapshot changes the v so that it can be safely stored for a long with guarantee that it won't be modified.
 // The data of the value are copied if it should be copied to achieve that guarantee.
 func Snapshot(v *Value) {
-	if v.t&valueTypeConst == 0 {
-		switch v.t & valueTypeMask {
-		case valueTypeNone:
-		case valueTypeAny:
+	if !v.bits.Const() {
+		switch v.bits.Type() {
+		case TypeNone:
+		case TypeAny:
 			snapshotAny(v)
-		case valueTypeBytes:
+		case TypeBytes:
 			snapshotBytes(v)
-		case valueTypeBools:
+		case TypeBools:
 			snapshotBools(v)
-		case valueTypeInts:
+		case TypeInts:
 			snapshotInts(v)
-		case valueTypeInts8:
+		case TypeInts8:
 			snapshotInts8(v)
-		case valueTypeInts16:
+		case TypeInts16:
 			snapshotInts16(v)
-		case valueTypeInts32:
+		case TypeInts32:
 			snapshotInts32(v)
-		case valueTypeInts64:
+		case TypeInts64:
 			snapshotInts64(v)
-		case valueTypeUints:
+		case TypeUints:
 			snapshotUints(v)
-		case valueTypeUints8:
+		case TypeUints8:
 			snapshotUints8(v)
-		case valueTypeUints16:
+		case TypeUints16:
 			snapshotUints16(v)
-		case valueTypeUints32:
+		case TypeUints32:
 			snapshotUints32(v)
-		case valueTypeUints64:
+		case TypeUints64:
 			snapshotUints64(v)
-		case valueTypeFloats32:
+		case TypeFloats32:
 			snapshotFloats32(v)
-		case valueTypeFloats64:
+		case TypeFloats64:
 			snapshotFloats64(v)
-		case valueTypeDurations:
+		case TypeDurations:
 			snapshotDurations(v)
-		case valueTypeStrings:
+		case TypeStrings:
 			snapshotStrings(v)
-		case valueTypeArray:
+		case TypeArray:
 			snapshotArray(v)
-		case valueTypeObject:
+		case TypeObject:
 			snapshotObject(v)
-		case valueTypeStringer:
+		case TypeStringer:
 			snapshotStringer(v)
-		case valueTypeFormatter:
+		case TypeFormatter:
 			snapshotFormatter(v)
 
 		default:
-			panic(fmt.Errorf("snapf: internal error: unhandled value type: %v", v.t))
+			panic(fmt.Errorf("snapf: internal error: unhandled value type: %v", v.bits.Type()))
 		}
 	}
 }
@@ -71,7 +71,7 @@ func snapshotBytes(v *Value) {
 	cc := make([]byte, len(v.vBytes))
 	copy(cc, v.vBytes)
 	v.vBytes = cc
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 func snapshotBools(v *Value) {
@@ -79,7 +79,7 @@ func snapshotBools(v *Value) {
 	cc := make([]bool, len(s))
 	copy(cc, s)
 	v.vBytes = *(*[]byte)(unsafe.Pointer(&cc))
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 func snapshotInts(v *Value) {
@@ -87,7 +87,7 @@ func snapshotInts(v *Value) {
 	cc := make([]int, len(s))
 	copy(cc, s)
 	v.vBytes = *(*[]byte)(unsafe.Pointer(&cc))
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 func snapshotInts8(v *Value) {
@@ -95,7 +95,7 @@ func snapshotInts8(v *Value) {
 	cc := make([]int8, len(s))
 	copy(cc, s)
 	v.vBytes = *(*[]byte)(unsafe.Pointer(&cc))
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 func snapshotInts16(v *Value) {
@@ -103,7 +103,7 @@ func snapshotInts16(v *Value) {
 	cc := make([]int16, len(s))
 	copy(cc, s)
 	v.vBytes = *(*[]byte)(unsafe.Pointer(&cc))
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 func snapshotInts32(v *Value) {
@@ -111,7 +111,7 @@ func snapshotInts32(v *Value) {
 	cc := make([]int32, len(s))
 	copy(cc, s)
 	v.vBytes = *(*[]byte)(unsafe.Pointer(&cc))
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 func snapshotInts64(v *Value) {
@@ -119,7 +119,7 @@ func snapshotInts64(v *Value) {
 	cc := make([]int64, len(s))
 	copy(cc, s)
 	v.vBytes = *(*[]byte)(unsafe.Pointer(&cc))
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 func snapshotUints(v *Value) {
@@ -127,7 +127,7 @@ func snapshotUints(v *Value) {
 	cc := make([]uint, len(s))
 	copy(cc, s)
 	v.vBytes = *(*[]byte)(unsafe.Pointer(&cc))
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 func snapshotUints8(v *Value) {
@@ -135,7 +135,7 @@ func snapshotUints8(v *Value) {
 	cc := make([]uint8, len(s))
 	copy(cc, s)
 	v.vBytes = *(*[]byte)(unsafe.Pointer(&cc))
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 func snapshotUints16(v *Value) {
@@ -143,7 +143,7 @@ func snapshotUints16(v *Value) {
 	cc := make([]uint16, len(s))
 	copy(cc, s)
 	v.vBytes = *(*[]byte)(unsafe.Pointer(&cc))
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 func snapshotUints32(v *Value) {
@@ -151,7 +151,7 @@ func snapshotUints32(v *Value) {
 	cc := make([]uint32, len(s))
 	copy(cc, s)
 	v.vBytes = *(*[]byte)(unsafe.Pointer(&cc))
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 func snapshotUints64(v *Value) {
@@ -159,7 +159,7 @@ func snapshotUints64(v *Value) {
 	cc := make([]uint64, len(s))
 	copy(cc, s)
 	v.vBytes = *(*[]byte)(unsafe.Pointer(&cc))
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 func snapshotFloats32(v *Value) {
@@ -167,7 +167,7 @@ func snapshotFloats32(v *Value) {
 	cc := make([]float32, len(s))
 	copy(cc, s)
 	v.vBytes = *(*[]byte)(unsafe.Pointer(&cc))
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 func snapshotFloats64(v *Value) {
@@ -175,7 +175,7 @@ func snapshotFloats64(v *Value) {
 	cc := make([]float64, len(s))
 	copy(cc, s)
 	v.vBytes = *(*[]byte)(unsafe.Pointer(&cc))
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 func snapshotDurations(v *Value) {
@@ -183,19 +183,19 @@ func snapshotDurations(v *Value) {
 	cc := make([]time.Duration, len(s))
 	copy(cc, s)
 	v.vBytes = *(*[]byte)(unsafe.Pointer(&cc))
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 func snapshotStringer(v *Value) {
 	v.vString = v.vAny.(fmt.Stringer).String()
 	v.vAny = nil
-	v.t = valueTypeString | valueTypeConst
+	v.bits = bits(TypeString) | bitsConst
 }
 
 func snapshotFormatter(v *Value) {
 	v.vString = fmt.Sprintf(v.vString, v.vAny)
 	v.vAny = nil
-	v.t = valueTypeString | valueTypeConst
+	v.bits = bits(TypeString) | bitsConst
 }
 
 func snapshotStrings(v *Value) {
@@ -203,7 +203,7 @@ func snapshotStrings(v *Value) {
 	cc := make([]string, len(s))
 	copy(cc, s)
 	v.vAny = cc
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 func snapshotAny(v *Value) {
@@ -220,7 +220,7 @@ func snapshotArray(v *Value) {
 	s := arraySnapshotter{arraySnapshot{make([]Value, a.ArrayItemCount())}}
 	a.AcceptArrayItemVisitor(&s)
 	v.vAny = s.snapshot
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 type arraySnapshotter struct {
@@ -256,7 +256,7 @@ func snapshotObject(v *Value) {
 	s := objectSnapshotter{objectSnapshot{make([]objectField, 0, o.ObjectFieldCount())}}
 	o.AcceptObjectFieldVisitor(&s)
 	v.vAny = s.snapshot
-	v.t |= valueTypeConst
+	v.bits |= bitsConst
 }
 
 type objectSnapshotter struct {
