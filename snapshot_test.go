@@ -502,7 +502,7 @@ var snapshotTests = []snapshotTestSpec{
 		Name:       "CorruptedValue",
 		ShoudPanic: true,
 		Generate: func() (Value, Value, func()) {
-			return Value{t: 255 & ^valueTypeConst}, Value{}, func() {}
+			return Value{bits: 255 & bitsMaskType}, Value{}, func() {}
 		},
 	},
 }
@@ -532,7 +532,7 @@ func TestSnapshotValues(t *testing.T) {
 				})
 			} else {
 				s := value.Snapshot()
-				require.Equal(t, valueTypeConst, s.t&valueTypeConst)
+				require.Equal(t, true, s.bits.Const())
 				modify()
 				if !test.SkipValueCheck {
 					require.Equal(t, golden, s)
