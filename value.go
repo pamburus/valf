@@ -12,11 +12,10 @@ import (
 
 // Value holds data of a specific type.
 type Value struct {
-	bits    bits
-	vAny    interface{}
-	vInt    int64
-	vBytes  []byte
-	vString string
+	vAny   interface{}
+	vInt   int64
+	vBytes []byte
+	bits   bits
 }
 
 // Type returns type of the value stored in v.
@@ -155,7 +154,7 @@ func (v Value) Stringer() fmt.Stringer {
 
 // Formattable returns value in case Type is TypeFormattable.
 func (v Value) Formattable() (string, interface{}) {
-	return v.vString, v.vAny
+	return *(*string)(unsafe.Pointer(&v.vBytes)), v.vAny
 }
 
 // Bytes returns value in case Type is TypeBytes.
@@ -165,7 +164,7 @@ func (v Value) Bytes() []byte {
 
 // String returns value in case Type is TypeString.
 func (v Value) String() string {
-	return v.vString
+	return *(*string)(unsafe.Pointer(&v.vBytes))
 }
 
 // Strings returns value in case Type is TypeStrings.
@@ -437,7 +436,7 @@ func Bytes(v []byte) Value {
 
 // String returns a new Value with the given string.
 func String(v string) Value {
-	return Value{bits: bits(TypeString) | bitsConst, vString: v}
+	return Value{bits: bits(TypeString) | bitsConst, vBytes: *(*[]byte)(unsafe.Pointer(&v))}
 }
 
 // Strings returns a new Value with the given slice of strings.
@@ -711,7 +710,7 @@ func ConstStringer(v fmt.Stringer) Value {
 
 // Formattable returns a new Value with the given format string and any value to format.
 func Formattable(format string, v interface{}) Value {
-	return Value{bits: bits(TypeFormattable), vString: format, vAny: v}
+	return Value{bits: bits(TypeFormattable), vBytes: *(*[]byte)(unsafe.Pointer(&format)), vAny: v}
 }
 
 // FormatStringRepr returns a new Value with the given interface to format.
@@ -727,7 +726,7 @@ func FormattableRepr(v interface{}) Value {
 // impact on the calling goroutine.
 //
 func ConstFormattable(format string, v interface{}) Value {
-	return Value{bits: bits(TypeFormattable) | bitsConst, vString: format, vAny: v}
+	return Value{bits: bits(TypeFormattable) | bitsConst, vBytes: *(*[]byte)(unsafe.Pointer(&format)), vAny: v}
 }
 
 // ConstFormattableRepr returns a new Value with the given interface to

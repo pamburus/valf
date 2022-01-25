@@ -187,15 +187,11 @@ func snapshotDurations(v *Value) {
 }
 
 func snapshotStringer(v *Value) {
-	v.vString = v.vAny.(fmt.Stringer).String()
-	v.vAny = nil
-	v.bits = bits(TypeString) | bitsConst
+	*v = String(v.vAny.(fmt.Stringer).String())
 }
 
 func snapshotFormattable(v *Value) {
-	v.vString = fmt.Sprintf(v.vString, v.vAny)
-	v.vAny = nil
-	v.bits = bits(TypeString) | bitsConst
+	*v = String(fmt.Sprintf(v.String(), v.vAny))
 }
 
 func snapshotStrings(v *Value) {
