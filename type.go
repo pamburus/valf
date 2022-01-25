@@ -45,5 +45,5 @@ const (
 	TypeArray
 	TypeObject
 	TypeStringer
-	TypeFormatter
+	TypeFormattable
 )

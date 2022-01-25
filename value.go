@@ -8,6 +8,8 @@ import (
 	"unsafe"
 )
 
+// ---
+
 // Value holds data of a specific type.
 type Value struct {
 	bits    bits
@@ -35,109 +37,323 @@ func (v Value) Snapshot() Value {
 	return v
 }
 
-// AcceptVisitor interprets Value data according to its type and calls appropriate
-// Visitor method.
-func (v Value) AcceptVisitor(visitor Visitor) {
-	switch v.bits.Type() {
+// Any returns value in case Type is TypeAny.
+func (v Value) Any() interface{} {
+	return v.vAny
+}
+
+// Bool returns value in case Type is TypeBool.
+func (v Value) Bool() bool {
+	return v.vInt != 0
+}
+
+// Int returns value in case Type is TypeInt.
+func (v Value) Int() int {
+	return (int(v.vInt))
+}
+
+// Int8 returns value in case Type is TypeInt8.
+func (v Value) Int8() int8 {
+	return (int8(v.vInt))
+}
+
+// Int16 returns value in case Type is TypeInt16.
+func (v Value) Int16() int16 {
+	return (int16(v.vInt))
+}
+
+// Int32 returns value in case Type is TypeInt32.
+func (v Value) Int32() int32 {
+	return (int32(v.vInt))
+}
+
+// Int64 returns value in case Type is TypeInt64.
+func (v Value) Int64() int64 {
+	return (v.vInt)
+}
+
+// Uint returns value in case Type is TypeUint.
+func (v Value) Uint() uint {
+	return (uint(v.vInt))
+}
+
+// Uint8 returns value in case Type is TypeUint8.
+func (v Value) Uint8() uint8 {
+	return (uint8(v.vInt))
+}
+
+// Uint16 returns value in case Type is TypeUint16.
+func (v Value) Uint16() uint16 {
+	return (uint16(v.vInt))
+}
+
+// Uint32 returns value in case Type is TypeUint32.
+func (v Value) Uint32() uint32 {
+	return (uint32(v.vInt))
+}
+
+// Uint64 returns value in case Type is TypeUint64.
+func (v Value) Uint64() uint64 {
+	return (uint64(v.vInt))
+}
+
+// Float32 returns value in case Type is TypeFloat32.
+func (v Value) Float32() float32 {
+	return (math.Float32frombits(uint32(v.vInt)))
+}
+
+// Float64 returns value in case Type is TypeFloat64.
+func (v Value) Float64() float64 {
+	return (math.Float64frombits(uint64(v.vInt)))
+}
+
+// Duration returns value in case Type is TypeDuration.
+func (v Value) Duration() time.Duration {
+	return (time.Duration(v.vInt))
+}
+
+// Error returns value in case Type is TypeError.
+func (v Value) Error() error {
+	if v.vAny == nil {
+		return nil
+	}
+
+	return v.vAny.(error)
+}
+
+// Time returns value in case Type is TypeTime.
+func (v Value) Time() time.Time {
+	return time.Unix(0, v.vInt).In(v.vAny.(*time.Location))
+}
+
+// Array returns value in case Type is TypeArray.
+func (v Value) Array() ValueArray {
+	if v.vAny == nil {
+		return nil
+	}
+
+	return v.vAny.(ValueArray)
+}
+
+// Object returns value in case Type is TypeObject.
+func (v Value) Object() ValueObject {
+	if v.vAny == nil {
+		return nil
+	}
+
+	return v.vAny.(ValueObject)
+}
+
+// Stringer returns value in case Type is TypeStringer.
+func (v Value) Stringer() fmt.Stringer {
+	if v.vAny == nil {
+		return nil
+	}
+
+	return v.vAny.(fmt.Stringer)
+}
+
+// Formattable returns value in case Type is TypeFormattable.
+func (v Value) Formattable() (string, interface{}) {
+	return v.vString, v.vAny
+}
+
+// Bytes returns value in case Type is TypeBytes.
+func (v Value) Bytes() []byte {
+	return v.vBytes
+}
+
+// String returns value in case Type is TypeString.
+func (v Value) String() string {
+	return v.vString
+}
+
+// Strings returns value in case Type is TypeStrings.
+func (v Value) Strings() []string {
+	return v.vAny.([]string)
+}
+
+// Bools returns value in case Type is TypeBools.
+func (v Value) Bools() []bool {
+	return *(*[]bool)(unsafe.Pointer(&v.vBytes))
+}
+
+// Ints returns value in case Type is TypeInts.
+func (v Value) Ints() []int {
+	return *(*[]int)(unsafe.Pointer(&v.vBytes))
+}
+
+// Ints8 returns value in case Type is TypeInts8.
+func (v Value) Ints8() []int8 {
+	return *(*[]int8)(unsafe.Pointer(&v.vBytes))
+}
+
+// Ints16 returns value in case Type is TypeInts16.
+func (v Value) Ints16() []int16 {
+	return *(*[]int16)(unsafe.Pointer(&v.vBytes))
+}
+
+// Ints32 returns value in case Type is TypeInts32.
+func (v Value) Ints32() []int32 {
+	return *(*[]int32)(unsafe.Pointer(&v.vBytes))
+}
+
+// Ints64 returns value in case Type is TypeInts64.
+func (v Value) Ints64() []int64 {
+	return *(*[]int64)(unsafe.Pointer(&v.vBytes))
+}
+
+// Uints returns value in case Type is TypeUints.
+func (v Value) Uints() []uint {
+	return *(*[]uint)(unsafe.Pointer(&v.vBytes))
+}
+
+// Uints8 returns value in case Type is TypeUints8.
+func (v Value) Uints8() []uint8 {
+	return *(*[]uint8)(unsafe.Pointer(&v.vBytes))
+}
+
+// Uints16 returns value in case Type is TypeUints16.
+func (v Value) Uints16() []uint16 {
+	return *(*[]uint16)(unsafe.Pointer(&v.vBytes))
+}
+
+// Uints32 returns value in case Type is TypeUints32.
+func (v Value) Uints32() []uint32 {
+	return *(*[]uint32)(unsafe.Pointer(&v.vBytes))
+}
+
+// Uints64 returns value in case Type is TypeUints64.
+func (v Value) Uints64() []uint64 {
+	return *(*[]uint64)(unsafe.Pointer(&v.vBytes))
+}
+
+// Floats32 returns value in case Type is TypeFloats32.
+func (v Value) Floats32() []float32 {
+	return *(*[]float32)(unsafe.Pointer(&v.vBytes))
+}
+
+// Floats64 returns value in case Type is TypeFloats64.
+func (v Value) Floats64() []float64 {
+	return *(*[]float64)(unsafe.Pointer(&v.vBytes))
+}
+
+// Durations returns value in case Type is TypeDurations.
+func (v Value) Durations() []time.Duration {
+	return *(*[]time.Duration)(unsafe.Pointer(&v.vBytes))
+}
+
+func (v Value) acceptVisitor(visitor visitor) {
+	switch v.Type() {
 	case TypeNone:
 		visitor.VisitNone()
 	case TypeAny:
-		visitor.VisitAny(v.vAny)
+		visitor.VisitAny(v.Any())
 	case TypeBool:
-		visitor.VisitBool(v.vInt != 0)
+		visitor.VisitBool(v.Bool())
 	case TypeInt:
-		visitor.VisitInt(int(v.vInt))
+		visitor.VisitInt(v.Int())
 	case TypeInt8:
-		visitor.VisitInt8(int8(v.vInt))
+		visitor.VisitInt8(v.Int8())
 	case TypeInt16:
-		visitor.VisitInt16(int16(v.vInt))
+		visitor.VisitInt16(v.Int16())
 	case TypeInt32:
-		visitor.VisitInt32(int32(v.vInt))
+		visitor.VisitInt32(v.Int32())
 	case TypeInt64:
-		visitor.VisitInt64(v.vInt)
+		visitor.VisitInt64(v.Int64())
 	case TypeUint:
-		visitor.VisitUint(uint(v.vInt))
+		visitor.VisitUint(v.Uint())
 	case TypeUint8:
-		visitor.VisitUint8(uint8(v.vInt))
+		visitor.VisitUint8(v.Uint8())
 	case TypeUint16:
-		visitor.VisitUint16(uint16(v.vInt))
+		visitor.VisitUint16(v.Uint16())
 	case TypeUint32:
-		visitor.VisitUint32(uint32(v.vInt))
+		visitor.VisitUint32(v.Uint32())
 	case TypeUint64:
-		visitor.VisitUint64(uint64(v.vInt))
+		visitor.VisitUint64(v.Uint64())
 	case TypeFloat32:
-		visitor.VisitFloat32(math.Float32frombits(uint32(v.vInt)))
+		visitor.VisitFloat32(v.Float32())
 	case TypeFloat64:
-		visitor.VisitFloat64(math.Float64frombits(uint64(v.vInt)))
+		visitor.VisitFloat64(v.Float64())
 	case TypeDuration:
-		visitor.VisitDuration(time.Duration(v.vInt))
+		visitor.VisitDuration(v.Duration())
 	case TypeError:
-		if v.vAny != nil {
-			visitor.VisitError(v.vAny.(error))
-		} else {
-			visitor.VisitError(nil)
-		}
+		visitor.VisitError(v.Error())
 	case TypeTime:
-		visitor.VisitTime(time.Unix(0, v.vInt).In(v.vAny.(*time.Location)))
-	case TypeArray:
-		if v.vAny != nil {
-			visitor.VisitArray(v.vAny.(ValueArray))
-		} else {
-			visitor.VisitArray(nil)
-		}
-	case TypeObject:
-		if v.vAny != nil {
-			visitor.VisitObject(v.vAny.(ValueObject))
-		} else {
-			visitor.VisitObject(nil)
-		}
-	case TypeStringer:
-		if v.vAny != nil {
-			visitor.VisitString(v.vAny.(fmt.Stringer).String())
-		} else {
-			visitor.VisitAny(nil)
-		}
-	case TypeFormatter:
-		visitor.VisitString(fmt.Sprintf(v.vString, v.vAny))
-	case TypeBytes:
-		visitor.VisitBytes(v.vBytes)
+		visitor.VisitTime(v.Time())
 	case TypeString:
-		visitor.VisitString(v.vString)
-	case TypeStrings:
-		visitor.VisitStrings(v.vAny.([]string))
+		visitor.VisitString(v.String())
+	case TypeBytes:
+		visitor.VisitBytes(v.Bytes())
 	case TypeBools:
-		visitor.VisitBools(*(*[]bool)(unsafe.Pointer(&v.vBytes)))
+		visitor.VisitBools(v.Bools())
 	case TypeInts:
-		visitor.VisitInts(*(*[]int)(unsafe.Pointer(&v.vBytes)))
+		visitor.VisitInts(v.Ints())
 	case TypeInts8:
-		visitor.VisitInts8(*(*[]int8)(unsafe.Pointer(&v.vBytes)))
+		visitor.VisitInts8(v.Ints8())
 	case TypeInts16:
-		visitor.VisitInts16(*(*[]int16)(unsafe.Pointer(&v.vBytes)))
+		visitor.VisitInts16(v.Ints16())
 	case TypeInts32:
-		visitor.VisitInts32(*(*[]int32)(unsafe.Pointer(&v.vBytes)))
+		visitor.VisitInts32(v.Ints32())
 	case TypeInts64:
-		visitor.VisitInts64(*(*[]int64)(unsafe.Pointer(&v.vBytes)))
+		visitor.VisitInts64(v.Ints64())
 	case TypeUints:
-		visitor.VisitUints(*(*[]uint)(unsafe.Pointer(&v.vBytes)))
+		visitor.VisitUints(v.Uints())
 	case TypeUints8:
-		visitor.VisitUints8(*(*[]uint8)(unsafe.Pointer(&v.vBytes)))
+		visitor.VisitUints8(v.Uints8())
 	case TypeUints16:
-		visitor.VisitUints16(*(*[]uint16)(unsafe.Pointer(&v.vBytes)))
+		visitor.VisitUints16(v.Uints16())
 	case TypeUints32:
-		visitor.VisitUints32(*(*[]uint32)(unsafe.Pointer(&v.vBytes)))
+		visitor.VisitUints32(v.Uints32())
 	case TypeUints64:
-		visitor.VisitUints64(*(*[]uint64)(unsafe.Pointer(&v.vBytes)))
+		visitor.VisitUints64(v.Uints64())
 	case TypeFloats32:
-		visitor.VisitFloats32(*(*[]float32)(unsafe.Pointer(&v.vBytes)))
+		visitor.VisitFloats32(v.Floats32())
 	case TypeFloats64:
-		visitor.VisitFloats64(*(*[]float64)(unsafe.Pointer(&v.vBytes)))
+		visitor.VisitFloats64(v.Floats64())
 	case TypeDurations:
-		visitor.VisitDurations(*(*[]time.Duration)(unsafe.Pointer(&v.vBytes)))
-
+		visitor.VisitDurations(v.Durations())
+	case TypeStrings:
+		visitor.VisitStrings(v.Strings())
+	case TypeArray:
+		visitor.VisitArray(v.Array())
+	case TypeObject:
+		visitor.VisitObject(v.Object())
+	case TypeStringer:
+		visitor.VisitStringer(v.Stringer())
+	case TypeFormattable:
+		visitor.VisitFormattable(v.Formattable())
 	default:
-		panic(fmt.Errorf("snapf: internal error: unhandled value type: %v", v.bits.Type()))
+		panic(fmt.Errorf("valf: internal error: unhandled value type: %v", v.Type()))
 	}
 }
+
+// ---
+
+// ValueArray accepts ArrayItemVisitor.
+type ValueArray interface {
+	ArrayItemCount() int
+	AcceptArrayItemVisitor(ArrayItemVisitor)
+}
+
+// ArrayItemVisitor visits array item.
+type ArrayItemVisitor interface {
+	VisitArrayItem(index int, value Value)
+}
+
+// ---
+// ValueObject accepts ObjectFieldVisitor.
+type ValueObject interface {
+	ObjectFieldCount() int
+	AcceptObjectFieldVisitor(ObjectFieldVisitor)
+}
+
+// ObjectFieldVisitor visits object field.
+type ObjectFieldVisitor interface {
+	VisitObjectField(key string, value Value)
+}
+
+// ---
 
 // Bool returns a new Value with the given bool.
 func Bool(v bool) Value {
@@ -493,37 +709,36 @@ func ConstStringer(v fmt.Stringer) Value {
 	return Value{bits: bits(TypeStringer) | bitsConst, vAny: v}
 }
 
-// Formatter returns a new Value with the given verb and interface to
-// Valueformat.
-func Formatter(verb string, v interface{}) Value {
-	return Value{bits: bits(TypeFormatter), vString: verb, vAny: v}
+// Formattable returns a new Value with the given format string and any value to format.
+func Formattable(format string, v interface{}) Value {
+	return Value{bits: bits(TypeFormattable), vString: format, vAny: v}
 }
 
-// FormatterRepr returns a new Value with the given interface to format.
-// ValueIt uses the predefined verb "%#v" (a Go-syntax representation of the value).
-func FormatterRepr(v interface{}) Value {
-	return Formatter("%#v", v)
+// FormatStringRepr returns a new Value with the given interface to format.
+// It uses the predefined format string "%#v" (a Go-syntax representation of the value).
+func FormattableRepr(v interface{}) Value {
+	return Formattable("%#v", v)
 }
 
-// ConstFormatter returns a new Value with the given verb and interface
-// Valueto format.
+// ConstFormattable returns a new Value with the given format string and interface
+// to format.
 //
 // Call ConstFormatter if your object is const. It has significantly less
 // impact on the calling goroutine.
 //
-func ConstFormatter(verb string, v interface{}) Value {
-	return Value{bits: bits(TypeFormatter) | bitsConst, vString: verb, vAny: v}
+func ConstFormattable(format string, v interface{}) Value {
+	return Value{bits: bits(TypeFormattable) | bitsConst, vString: format, vAny: v}
 }
 
-// ConstFormatterRepr returns a new Value with the given interface to
+// ConstFormattableRepr returns a new Value with the given interface to
 // format. It uses the predefined verb "%#v" (a Go-syntax representation of
-// Valuethe value).
+// the value).
 //
-// Call ConstFormatterV if your object is const. It has significantly less
+// Call ConstFormattableRepr if your object is const. It has significantly less
 // impact on the calling goroutine.
 //
-func ConstFormatterRepr(v interface{}) Value {
-	return ConstFormatter("%#v", v)
+func ConstFormattableRepr(v interface{}) Value {
+	return ConstFormattable("%#v", v)
 }
 
 // Any returns a new Value with the given value of any type. It tries

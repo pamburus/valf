@@ -6,7 +6,7 @@ import (
 )
 
 func TestIgnoringVisitor(t *testing.T) {
-	var v IgnoringVisitor
+	var v ignoringVisitor
 	v.VisitNone()
 	v.VisitAny(nil)
 	v.VisitBool(false)
@@ -44,4 +44,6 @@ func TestIgnoringVisitor(t *testing.T) {
 	v.VisitDurations([]time.Duration{time.Second, time.Hour})
 	v.VisitArray(nil)
 	v.VisitObject(nil)
+	v.VisitStringer(nil)
+	v.VisitFormattable("", nil)
 }

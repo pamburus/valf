@@ -1,12 +1,13 @@
 package valf
 
 import (
+	"fmt"
 	"time"
 )
 
-// Visitor defines the interface that allows to visit a value
+// visitor defines the interface that allows to visit a value
 // and do some action depending on its real type.
-type Visitor interface {
+type visitor interface {
 	VisitNone()
 	VisitAny(interface{})
 	VisitBool(bool)
@@ -23,6 +24,8 @@ type Visitor interface {
 	VisitFloat32(float32)
 	VisitFloat64(float64)
 	VisitDuration(time.Duration)
+	VisitStringer(fmt.Stringer)
+	VisitFormattable(string, interface{})
 	VisitError(error)
 	VisitTime(time.Time)
 	VisitString(string)
@@ -46,138 +49,122 @@ type Visitor interface {
 	VisitObject(ValueObject)
 }
 
-// ValueArray accepts ArrayItemVisitor.
-type ValueArray interface {
-	ArrayItemCount() int
-	AcceptArrayItemVisitor(ArrayItemVisitor)
-}
-
-// ArrayItemVisitor visits array item.
-type ArrayItemVisitor interface {
-	VisitArrayItem(index int, value Value)
-}
-
-// ValueObject accepts ObjectFieldVisitor.
-type ValueObject interface {
-	ObjectFieldCount() int
-	AcceptObjectFieldVisitor(ObjectFieldVisitor)
-}
-
-// ObjectFieldVisitor visits object field.
-type ObjectFieldVisitor interface {
-	VisitObjectField(key string, value Value)
-}
-
-// IgnoringVisitor is an implementation of Visitor interface which does nothing.
-type IgnoringVisitor struct{}
+// ignoringVisitor is an implementation of Visitor interface which does nothing.
+type ignoringVisitor struct{}
 
 // VisitNone does nothing.
-func (v IgnoringVisitor) VisitNone() {}
+func (v ignoringVisitor) VisitNone() {}
 
 // VisitAny does nothing.
-func (v IgnoringVisitor) VisitAny(interface{}) {}
+func (v ignoringVisitor) VisitAny(interface{}) {}
 
 // VisitBool does nothing.
-func (v IgnoringVisitor) VisitBool(bool) {}
+func (v ignoringVisitor) VisitBool(bool) {}
 
 // VisitInt does nothing.
-func (v IgnoringVisitor) VisitInt(int) {}
+func (v ignoringVisitor) VisitInt(int) {}
 
 // VisitInt8 does nothing.
-func (v IgnoringVisitor) VisitInt8(int8) {}
+func (v ignoringVisitor) VisitInt8(int8) {}
 
 // VisitInt16 does nothing.
-func (v IgnoringVisitor) VisitInt16(int16) {}
+func (v ignoringVisitor) VisitInt16(int16) {}
 
 // VisitInt32 does nothing.
-func (v IgnoringVisitor) VisitInt32(int32) {}
+func (v ignoringVisitor) VisitInt32(int32) {}
 
 // VisitInt64 does nothing.
-func (v IgnoringVisitor) VisitInt64(int64) {}
+func (v ignoringVisitor) VisitInt64(int64) {}
 
 // VisitUint does nothing.
-func (v IgnoringVisitor) VisitUint(uint) {}
+func (v ignoringVisitor) VisitUint(uint) {}
 
 // VisitUint8 does nothing.
-func (v IgnoringVisitor) VisitUint8(uint8) {}
+func (v ignoringVisitor) VisitUint8(uint8) {}
 
 // VisitUint16 does nothing.
-func (v IgnoringVisitor) VisitUint16(uint16) {}
+func (v ignoringVisitor) VisitUint16(uint16) {}
 
 // VisitUint32 does nothing.
-func (v IgnoringVisitor) VisitUint32(uint32) {}
+func (v ignoringVisitor) VisitUint32(uint32) {}
 
 // VisitUint64 does nothing.
-func (v IgnoringVisitor) VisitUint64(uint64) {}
+func (v ignoringVisitor) VisitUint64(uint64) {}
 
 // VisitFloat32 does nothing.
-func (v IgnoringVisitor) VisitFloat32(float32) {}
+func (v ignoringVisitor) VisitFloat32(float32) {}
 
 // VisitFloat64 does nothing.
-func (v IgnoringVisitor) VisitFloat64(float64) {}
+func (v ignoringVisitor) VisitFloat64(float64) {}
 
 // VisitDuration does nothing.
-func (v IgnoringVisitor) VisitDuration(time.Duration) {}
+func (v ignoringVisitor) VisitDuration(time.Duration) {}
 
 // VisitError does nothing.
-func (v IgnoringVisitor) VisitError(error) {}
+func (v ignoringVisitor) VisitError(error) {}
 
 // VisitTime does nothing.
-func (v IgnoringVisitor) VisitTime(time.Time) {}
+func (v ignoringVisitor) VisitTime(time.Time) {}
 
 // VisitString does nothing.
-func (v IgnoringVisitor) VisitString(string) {}
+func (v ignoringVisitor) VisitString(string) {}
 
 // VisitStrings does nothing.
-func (v IgnoringVisitor) VisitStrings([]string) {}
+func (v ignoringVisitor) VisitStrings([]string) {}
 
 // VisitBytes does nothing.
-func (v IgnoringVisitor) VisitBytes([]byte) {}
+func (v ignoringVisitor) VisitBytes([]byte) {}
 
 // VisitBools does nothing.
-func (v IgnoringVisitor) VisitBools([]bool) {}
+func (v ignoringVisitor) VisitBools([]bool) {}
 
 // VisitInts does nothing.
-func (v IgnoringVisitor) VisitInts([]int) {}
+func (v ignoringVisitor) VisitInts([]int) {}
 
 // VisitInts8 does nothing.
-func (v IgnoringVisitor) VisitInts8([]int8) {}
+func (v ignoringVisitor) VisitInts8([]int8) {}
 
 // VisitInts16 does nothing.
-func (v IgnoringVisitor) VisitInts16([]int16) {}
+func (v ignoringVisitor) VisitInts16([]int16) {}
 
 // VisitInts32 does nothing.
-func (v IgnoringVisitor) VisitInts32([]int32) {}
+func (v ignoringVisitor) VisitInts32([]int32) {}
 
 // VisitInts64 does nothing.
-func (v IgnoringVisitor) VisitInts64([]int64) {}
+func (v ignoringVisitor) VisitInts64([]int64) {}
 
 // VisitUints does nothing.
-func (v IgnoringVisitor) VisitUints([]uint) {}
+func (v ignoringVisitor) VisitUints([]uint) {}
 
 // VisitUints8 does nothing.
-func (v IgnoringVisitor) VisitUints8([]uint8) {}
+func (v ignoringVisitor) VisitUints8([]uint8) {}
 
 // VisitUints16 does nothing.
-func (v IgnoringVisitor) VisitUints16([]uint16) {}
+func (v ignoringVisitor) VisitUints16([]uint16) {}
 
 // VisitUints32 does nothing.
-func (v IgnoringVisitor) VisitUints32([]uint32) {}
+func (v ignoringVisitor) VisitUints32([]uint32) {}
 
 // VisitUints64 does nothing.
-func (v IgnoringVisitor) VisitUints64([]uint64) {}
+func (v ignoringVisitor) VisitUints64([]uint64) {}
 
 // VisitFloats32 does nothing.
-func (v IgnoringVisitor) VisitFloats32([]float32) {}
+func (v ignoringVisitor) VisitFloats32([]float32) {}
 
 // VisitFloats64 does nothing.
-func (v IgnoringVisitor) VisitFloats64([]float64) {}
+func (v ignoringVisitor) VisitFloats64([]float64) {}
 
 // VisitDurations does nothing.
-func (v IgnoringVisitor) VisitDurations([]time.Duration) {}
+func (v ignoringVisitor) VisitDurations([]time.Duration) {}
 
 // VisitArray does nothing.
-func (v IgnoringVisitor) VisitArray(ValueArray) {}
+func (v ignoringVisitor) VisitArray(ValueArray) {}
 
 // VisitObject does nothing.
-func (v IgnoringVisitor) VisitObject(ValueObject) {}
+func (v ignoringVisitor) VisitObject(ValueObject) {}
+
+// VisitStringer does nothing.
+func (v ignoringVisitor) VisitStringer(fmt.Stringer) {}
+
+// VisitFormattable does nothing.
+func (v ignoringVisitor) VisitFormattable(string, interface{}) {}

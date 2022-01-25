@@ -58,11 +58,11 @@ func Snapshot(v *Value) {
 			snapshotObject(v)
 		case TypeStringer:
 			snapshotStringer(v)
-		case TypeFormatter:
-			snapshotFormatter(v)
+		case TypeFormattable:
+			snapshotFormattable(v)
 
 		default:
-			panic(fmt.Errorf("snapf: internal error: unhandled value type: %v", v.bits.Type()))
+			panic(fmt.Errorf("valf: internal error: unhandled value type: %v", v.bits.Type()))
 		}
 	}
 }
@@ -192,7 +192,7 @@ func snapshotStringer(v *Value) {
 	v.bits = bits(TypeString) | bitsConst
 }
 
-func snapshotFormatter(v *Value) {
+func snapshotFormattable(v *Value) {
 	v.vString = fmt.Sprintf(v.vString, v.vAny)
 	v.vAny = nil
 	v.bits = bits(TypeString) | bitsConst
@@ -209,18 +209,22 @@ func snapshotStrings(v *Value) {
 func snapshotAny(v *Value) {
 	snapshotter, ok := v.vAny.(Snapshotter)
 	if !ok {
-		panic(errors.New("snapf: cannot snapshot value with type Any since it does not implement Snapshotter interface"))
+		panic(errors.New("valf: cannot snapshot value with type Any since it does not implement Snapshotter interface"))
 	}
 
 	*v = ConstAny(snapshotter.TakeSnapshot())
 }
 
 func snapshotArray(v *Value) {
-	a := v.vAny.(ValueArray)
-	s := arraySnapshotter{arraySnapshot{make([]Value, a.ArrayItemCount())}}
-	a.AcceptArrayItemVisitor(&s)
-	v.vAny = s.snapshot
-	v.bits |= bitsConst
+	if snapshotter, ok := v.vAny.(Snapshotter); ok {
+		*v = ConstAny(snapshotter.TakeSnapshot())
+	} else {
+		a := v.vAny.(ValueArray)
+		s := arraySnapshotter{arraySnapshot{make([]Value, a.ArrayItemCount())}}
+		a.AcceptArrayItemVisitor(&s)
+		v.vAny = s.snapshot
+		v.bits |= bitsConst
+	}
 }
 
 type arraySnapshotter struct {
@@ -252,11 +256,15 @@ type objectField struct {
 }
 
 func snapshotObject(v *Value) {
-	o := v.vAny.(ValueObject)
-	s := objectSnapshotter{objectSnapshot{make([]objectField, 0, o.ObjectFieldCount())}}
-	o.AcceptObjectFieldVisitor(&s)
-	v.vAny = s.snapshot
-	v.bits |= bitsConst
+	if snapshotter, ok := v.vAny.(Snapshotter); ok {
+		*v = ConstAny(snapshotter.TakeSnapshot())
+	} else {
+		o := v.vAny.(ValueObject)
+		s := objectSnapshotter{objectSnapshot{make([]objectField, 0, o.ObjectFieldCount())}}
+		o.AcceptObjectFieldVisitor(&s)
+		v.vAny = s.snapshot
+		v.bits |= bitsConst
+	}
 }
 
 type objectSnapshotter struct {

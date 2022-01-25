@@ -45,6 +45,22 @@ func (a mockArray) AcceptArrayItemVisitor(visitor ArrayItemVisitor) {
 	}
 }
 
+type mockArraySnapshotter []Value
+
+func (a mockArraySnapshotter) ArrayItemCount() int {
+	return len(a)
+}
+
+func (a mockArraySnapshotter) AcceptArrayItemVisitor(visitor ArrayItemVisitor) {
+	for i, value := range a {
+		visitor.VisitArrayItem(i, value)
+	}
+}
+
+func (a mockArraySnapshotter) TakeSnapshot() interface{} {
+	return mockArraySnapshotter(append([]Value{}, a...))
+}
+
 type mockObject map[string]Value
 
 func (o mockObject) ObjectFieldCount() int {
@@ -55,6 +71,27 @@ func (o mockObject) AcceptObjectFieldVisitor(visitor ObjectFieldVisitor) {
 	for key, value := range o {
 		visitor.VisitObjectField(key, value)
 	}
+}
+
+type mockObjectSnapshotter map[string]Value
+
+func (o mockObjectSnapshotter) ObjectFieldCount() int {
+	return len(o)
+}
+
+func (o mockObjectSnapshotter) AcceptObjectFieldVisitor(visitor ObjectFieldVisitor) {
+	for key, value := range o {
+		visitor.VisitObjectField(key, value)
+	}
+}
+
+func (o mockObjectSnapshotter) TakeSnapshot() interface{} {
+	cc := make(mockObjectSnapshotter, len(o))
+	for k, v := range o {
+		cc[k] = v
+	}
+
+	return cc
 }
 
 type mockVisitor struct {
@@ -206,6 +243,14 @@ func (v mockVisitor) VisitArray(ValueArray) {
 }
 
 func (v mockVisitor) VisitObject(ValueObject) {
+	v.t.Fatal("unexpected function call")
+}
+
+func (v mockVisitor) VisitStringer(fmt.Stringer) {
+	v.t.Fatal("unexpected function call")
+}
+
+func (v mockVisitor) VisitFormattable(string, interface{}) {
 	v.t.Fatal("unexpected function call")
 }
 
@@ -443,6 +488,38 @@ type mockStringVisitor struct {
 }
 
 func (v *mockStringVisitor) VisitString(value string) {
+	v.value = value
+	v.visited = true
+}
+
+func newMockStringerVisitor(t *testing.T) *mockStringerVisitor {
+	return &mockStringerVisitor{mockVisitor: mockVisitor{t}}
+}
+
+type mockStringerVisitor struct {
+	mockVisitor
+	value   fmt.Stringer
+	visited bool
+}
+
+func (v *mockStringerVisitor) VisitStringer(value fmt.Stringer) {
+	v.value = value
+	v.visited = true
+}
+
+func newMockFormattableVisitor(t *testing.T) *mockFormattableVisitor {
+	return &mockFormattableVisitor{mockVisitor: mockVisitor{t}}
+}
+
+type mockFormattableVisitor struct {
+	mockVisitor
+	format  string
+	value   interface{}
+	visited bool
+}
+
+func (v *mockFormattableVisitor) VisitFormattable(format string, value interface{}) {
+	v.format = format
 	v.value = value
 	v.visited = true
 }
@@ -782,7 +859,7 @@ func TestValueNone(t *testing.T) {
 	visitor := newMockNoneVisitor(t)
 	value := Value{}
 	require.Equal(t, TypeNone, value.Type())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 }
 
@@ -790,7 +867,7 @@ func TestValueNoneSnapshot(t *testing.T) {
 	visitor := newMockNoneVisitor(t)
 	value := Value{}.Snapshot()
 	require.Equal(t, TypeNone, value.Type())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 }
 
@@ -799,7 +876,7 @@ func TestValueBool(t *testing.T) {
 	value := Bool(true)
 	require.Equal(t, TypeBool, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, true, visitor.value)
 }
@@ -809,7 +886,7 @@ func TestValueAnyBool(t *testing.T) {
 	value := Any(true)
 	require.Equal(t, TypeBool, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, true, visitor.value)
 }
@@ -819,7 +896,7 @@ func TestValueConstAnyBool(t *testing.T) {
 	value := ConstAny(true)
 	require.Equal(t, TypeBool, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, true, visitor.value)
 }
@@ -835,7 +912,7 @@ func TestValueInt(t *testing.T) {
 	value := Int(42)
 	require.Equal(t, TypeInt, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, 42, visitor.value)
 }
@@ -845,7 +922,7 @@ func TestValueAnyInt(t *testing.T) {
 	value := Any(42)
 	require.Equal(t, TypeInt, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, 42, visitor.value)
 }
@@ -855,7 +932,7 @@ func TestValueConstAnyInt(t *testing.T) {
 	value := ConstAny(42)
 	require.Equal(t, TypeInt, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, 42, visitor.value)
 }
@@ -871,7 +948,7 @@ func TestValueInt8(t *testing.T) {
 	value := Int8(42)
 	require.Equal(t, TypeInt8, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, int8(42), visitor.value)
 }
@@ -881,7 +958,7 @@ func TestValueAnyInt8(t *testing.T) {
 	value := Any(int8(42))
 	require.Equal(t, TypeInt8, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, int8(42), visitor.value)
 }
@@ -891,7 +968,7 @@ func TestValueConstAnyInt8(t *testing.T) {
 	value := ConstAny(int8(42))
 	require.Equal(t, TypeInt8, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, int8(42), visitor.value)
 }
@@ -906,7 +983,7 @@ func TestValueInt16(t *testing.T) {
 	value := Int16(42)
 	require.Equal(t, TypeInt16, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, int16(42), visitor.value)
 }
@@ -916,7 +993,7 @@ func TestValueAnyInt16(t *testing.T) {
 	value := Any(int16(42))
 	require.Equal(t, TypeInt16, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, int16(42), visitor.value)
 }
@@ -926,7 +1003,7 @@ func TestValueConstAnyInt16(t *testing.T) {
 	value := ConstAny(int16(42))
 	require.Equal(t, TypeInt16, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, int16(42), visitor.value)
 }
@@ -942,7 +1019,7 @@ func TestValueInt32(t *testing.T) {
 	value := Int32(42)
 	require.Equal(t, TypeInt32, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, int32(42), visitor.value)
 }
@@ -952,7 +1029,7 @@ func TestValueAnyInt32(t *testing.T) {
 	value := Any(int32(42))
 	require.Equal(t, TypeInt32, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, int32(42), visitor.value)
 }
@@ -962,7 +1039,7 @@ func TestValueConstAnyInt32(t *testing.T) {
 	value := ConstAny(int32(42))
 	require.Equal(t, TypeInt32, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, int32(42), visitor.value)
 }
@@ -978,7 +1055,7 @@ func TestValueInt64(t *testing.T) {
 	value := Int64(42)
 	require.Equal(t, TypeInt64, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, int64(42), visitor.value)
 }
@@ -988,7 +1065,7 @@ func TestValueAnyInt64(t *testing.T) {
 	value := Any(int64(42))
 	require.Equal(t, TypeInt64, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, int64(42), visitor.value)
 }
@@ -998,7 +1075,7 @@ func TestValueConstAnyInt64(t *testing.T) {
 	value := ConstAny(int64(42))
 	require.Equal(t, TypeInt64, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, int64(42), visitor.value)
 }
@@ -1014,7 +1091,7 @@ func TestValueUint(t *testing.T) {
 	value := Uint(42)
 	require.Equal(t, TypeUint, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, uint(42), visitor.value)
 }
@@ -1024,7 +1101,7 @@ func TestValueAnyUint(t *testing.T) {
 	value := Any(uint(42))
 	require.Equal(t, TypeUint, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, uint(42), visitor.value)
 }
@@ -1034,7 +1111,7 @@ func TestValueConstAnyUint(t *testing.T) {
 	value := ConstAny(uint(42))
 	require.Equal(t, TypeUint, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, uint(42), visitor.value)
 }
@@ -1050,7 +1127,7 @@ func TestValueUint8(t *testing.T) {
 	value := Uint8(42)
 	require.Equal(t, TypeUint8, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, uint8(42), visitor.value)
 }
@@ -1060,7 +1137,7 @@ func TestValueAnyUint8(t *testing.T) {
 	value := Any(uint8(42))
 	require.Equal(t, TypeUint8, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, uint8(42), visitor.value)
 }
@@ -1070,7 +1147,7 @@ func TestValueConstAnyUint8(t *testing.T) {
 	value := ConstAny(uint8(42))
 	require.Equal(t, TypeUint8, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, uint8(42), visitor.value)
 }
@@ -1086,7 +1163,7 @@ func TestValueUint16(t *testing.T) {
 	value := Uint16(42)
 	require.Equal(t, TypeUint16, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, uint16(42), visitor.value)
 }
@@ -1096,7 +1173,7 @@ func TestValueAnyUint16(t *testing.T) {
 	value := Any(uint16(42))
 	require.Equal(t, TypeUint16, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, uint16(42), visitor.value)
 }
@@ -1106,7 +1183,7 @@ func TestValueConstAnyUint16(t *testing.T) {
 	value := ConstAny(uint16(42))
 	require.Equal(t, TypeUint16, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, uint16(42), visitor.value)
 }
@@ -1122,7 +1199,7 @@ func TestValueUint32(t *testing.T) {
 	value := Uint32(42)
 	require.Equal(t, TypeUint32, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, uint32(42), visitor.value)
 }
@@ -1132,7 +1209,7 @@ func TestValueAnyUint32(t *testing.T) {
 	value := Any(uint32(42))
 	require.Equal(t, TypeUint32, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, uint32(42), visitor.value)
 }
@@ -1142,7 +1219,7 @@ func TestValueConstAnyUint32(t *testing.T) {
 	value := ConstAny(uint32(42))
 	require.Equal(t, TypeUint32, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, uint32(42), visitor.value)
 }
@@ -1158,7 +1235,7 @@ func TestValueUint64(t *testing.T) {
 	value := Uint64(42)
 	require.Equal(t, TypeUint64, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, uint64(42), visitor.value)
 }
@@ -1168,7 +1245,7 @@ func TestValueAnyUint64(t *testing.T) {
 	value := Any(uint64(42))
 	require.Equal(t, TypeUint64, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, uint64(42), visitor.value)
 }
@@ -1178,7 +1255,7 @@ func TestValueConstAnyUint64(t *testing.T) {
 	value := ConstAny(uint64(42))
 	require.Equal(t, TypeUint64, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, uint64(42), visitor.value)
 }
@@ -1194,7 +1271,7 @@ func TestValueFloat32(t *testing.T) {
 	value := Float32(0.42)
 	require.Equal(t, TypeFloat32, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, float32(0.42), visitor.value)
 }
@@ -1204,7 +1281,7 @@ func TestValueAnyFloat32(t *testing.T) {
 	value := Any(float32(0.42))
 	require.Equal(t, TypeFloat32, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, float32(0.42), visitor.value)
 }
@@ -1214,7 +1291,7 @@ func TestValueConstAnyFloat32(t *testing.T) {
 	value := ConstAny(float32(0.42))
 	require.Equal(t, TypeFloat32, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, float32(0.42), visitor.value)
 }
@@ -1230,7 +1307,7 @@ func TestValueFloat64(t *testing.T) {
 	value := Float64(0.42)
 	require.Equal(t, TypeFloat64, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, float64(0.42), visitor.value)
 }
@@ -1240,7 +1317,7 @@ func TestValueAnyFloat64(t *testing.T) {
 	value := Any(float64(0.42))
 	require.Equal(t, TypeFloat64, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, float64(0.42), visitor.value)
 }
@@ -1250,7 +1327,7 @@ func TestValueConstAnyFloat64(t *testing.T) {
 	value := ConstAny(float64(0.42))
 	require.Equal(t, TypeFloat64, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, float64(0.42), visitor.value)
 }
@@ -1267,7 +1344,7 @@ func TestValueString(t *testing.T) {
 	value := String(v)
 	require.Equal(t, TypeString, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1278,7 +1355,7 @@ func TestValueAnyString(t *testing.T) {
 	value := Any(v)
 	require.Equal(t, TypeString, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1289,7 +1366,7 @@ func TestValueConstAnyString(t *testing.T) {
 	value := ConstAny(v)
 	require.Equal(t, TypeString, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1301,55 +1378,55 @@ func BenchmarkValueStringConstruction(b *testing.B) {
 }
 
 func TestValueStringer(t *testing.T) {
-	visitor := newMockStringVisitor(t)
-	v := "test"
-	value := Stringer(testStringer(v))
+	visitor := newMockStringerVisitor(t)
+	v := testStringer("test")
+	value := Stringer(v)
 	require.Equal(t, TypeStringer, value.Type())
 	require.Equal(t, false, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
 
 func TestValueConstStringer(t *testing.T) {
-	visitor := newMockStringVisitor(t)
-	v := "test"
-	value := ConstStringer(testStringer(v))
+	visitor := newMockStringerVisitor(t)
+	v := testStringer("test")
+	value := ConstStringer(v)
 	require.Equal(t, TypeStringer, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
 
 func TestValueNilStringer(t *testing.T) {
-	visitor := newMockAnyVisitor(t)
+	visitor := newMockStringerVisitor(t)
 	value := Stringer(nil)
 	require.Equal(t, TypeStringer, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, nil, visitor.value)
 }
 
 func TestValueAnyStringer(t *testing.T) {
-	visitor := newMockStringVisitor(t)
-	v := "test"
-	value := Any(testStringer(v))
+	visitor := newMockStringerVisitor(t)
+	v := testStringer("test")
+	value := Any(v)
 	require.Equal(t, TypeStringer, value.Type())
 	require.Equal(t, false, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
 
 func TestValueConstAnyStringer(t *testing.T) {
-	visitor := newMockStringVisitor(t)
-	v := "test"
-	value := ConstAny(testStringer(v))
+	visitor := newMockStringerVisitor(t)
+	v := testStringer("test")
+	value := ConstAny(v)
 	require.Equal(t, TypeStringer, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1360,28 +1437,30 @@ func BenchmarkValueStringerConstruction(b *testing.B) {
 	}
 }
 
-func TestValueFormatter(t *testing.T) {
-	visitor := newMockStringVisitor(t)
+func TestValueFormattable(t *testing.T) {
+	visitor := newMockFormattableVisitor(t)
 	v := "test"
 	f := &mockFormatter{t: t, value: v}
-	value := FormatterRepr(f)
-	require.Equal(t, TypeFormatter, value.Type())
+	value := Formattable("%#v", f)
+	require.Equal(t, TypeFormattable, value.Type())
 	require.Equal(t, false, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
-	require.Equal(t, v, visitor.value)
+	require.Equal(t, "%#v", visitor.format)
+	require.Equal(t, f, visitor.value)
 }
 
-func TestValueConstFormatter(t *testing.T) {
-	visitor := newMockStringVisitor(t)
+func TestValueConstFormattable(t *testing.T) {
+	visitor := newMockFormattableVisitor(t)
 	v := "test"
 	f := &mockFormatter{t: t, value: v}
-	value := ConstFormatterRepr(f)
-	require.Equal(t, TypeFormatter, value.Type())
+	value := ConstFormattable("%#v", f)
+	require.Equal(t, TypeFormattable, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
-	require.Equal(t, v, visitor.value)
+	require.Equal(t, "%#v", visitor.format)
+	require.Equal(t, f, visitor.value)
 }
 
 func TestValueDuration(t *testing.T) {
@@ -1389,7 +1468,7 @@ func TestValueDuration(t *testing.T) {
 	value := Duration(time.Second)
 	require.Equal(t, TypeDuration, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, time.Second, visitor.value)
 }
@@ -1399,7 +1478,7 @@ func TestValueAnyDuration(t *testing.T) {
 	value := Any(time.Second)
 	require.Equal(t, TypeDuration, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, time.Second, visitor.value)
 }
@@ -1409,7 +1488,7 @@ func TestValueConstAnyDuration(t *testing.T) {
 	value := ConstAny(time.Second)
 	require.Equal(t, TypeDuration, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, time.Second, visitor.value)
 }
@@ -1426,7 +1505,7 @@ func TestValueTime(t *testing.T) {
 	value := Time(now)
 	require.Equal(t, TypeTime, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, now.UnixNano(), visitor.value.UnixNano())
 	require.Equal(t, now.Location(), visitor.value.Location())
@@ -1438,7 +1517,7 @@ func TestValueEmptyTime(t *testing.T) {
 	value := Time(v)
 	require.Equal(t, TypeTime, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v.UnixNano(), visitor.value.UnixNano())
 	require.Equal(t, v.Location(), visitor.value.Location())
@@ -1450,7 +1529,7 @@ func TestValueAnyTime(t *testing.T) {
 	value := Any(now)
 	require.Equal(t, TypeTime, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, now.UnixNano(), visitor.value.UnixNano())
 	require.Equal(t, now.Location(), visitor.value.Location())
@@ -1462,7 +1541,7 @@ func TestValueConstAnyTime(t *testing.T) {
 	value := ConstAny(now)
 	require.Equal(t, TypeTime, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, now.UnixNano(), visitor.value.UnixNano())
 	require.Equal(t, now.Location(), visitor.value.Location())
@@ -1481,7 +1560,7 @@ func TestValueError(t *testing.T) {
 	value := Error(err)
 	require.Equal(t, TypeError, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, err, visitor.value)
 }
@@ -1492,7 +1571,7 @@ func TestValueNilError(t *testing.T) {
 	value := Error(err)
 	require.Equal(t, TypeError, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, err, visitor.value)
 }
@@ -1503,7 +1582,7 @@ func TestValueAnyError(t *testing.T) {
 	value := Any(err)
 	require.Equal(t, TypeError, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, err, visitor.value)
 }
@@ -1514,7 +1593,7 @@ func TestValueConstAnyError(t *testing.T) {
 	value := ConstAny(err)
 	require.Equal(t, TypeError, value.Type())
 	require.Equal(t, true, value.Const())
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, err, visitor.value)
 }
@@ -1523,7 +1602,7 @@ func TestValueBytes(t *testing.T) {
 	visitor := newMockBytesVisitor(t)
 	v := []byte("some value")
 	value := Bytes(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1532,7 +1611,7 @@ func TestValueConstBytes(t *testing.T) {
 	visitor := newMockBytesVisitor(t)
 	v := []byte("some value")
 	value := Bytes(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1540,7 +1619,7 @@ func TestValueConstBytes(t *testing.T) {
 func TestValueNilBytes(t *testing.T) {
 	visitor := newMockBytesVisitor(t)
 	value := Bytes(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []byte(nil), visitor.value)
 }
@@ -1549,7 +1628,7 @@ func TestValueAnyBytes(t *testing.T) {
 	visitor := newMockBytesVisitor(t)
 	v := []byte("some value")
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1558,7 +1637,7 @@ func TestValueConstAnyBytes(t *testing.T) {
 	visitor := newMockBytesVisitor(t)
 	v := []byte("some value")
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1566,7 +1645,7 @@ func TestValueConstAnyBytes(t *testing.T) {
 func TestValueAnyNil(t *testing.T) {
 	visitor := newMockAnyVisitor(t)
 	value := Any(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, nil, visitor.value)
 }
@@ -1574,7 +1653,7 @@ func TestValueAnyNil(t *testing.T) {
 func TestValueConstAnyNil(t *testing.T) {
 	visitor := newMockAnyVisitor(t)
 	value := ConstAny(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, nil, visitor.value)
 }
@@ -1590,7 +1669,7 @@ func TestValueInts(t *testing.T) {
 	visitor := newMockIntsVisitor(t)
 	v := []int{1, 2, 3}
 	value := Ints(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1599,7 +1678,7 @@ func TestValueConstInts(t *testing.T) {
 	visitor := newMockIntsVisitor(t)
 	v := []int{1, 2, 3}
 	value := ConstInts(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1607,7 +1686,7 @@ func TestValueConstInts(t *testing.T) {
 func TestValueNilInts(t *testing.T) {
 	visitor := newMockIntsVisitor(t)
 	value := Ints(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []int(nil), visitor.value)
 }
@@ -1616,7 +1695,7 @@ func TestValueAnyInts(t *testing.T) {
 	visitor := newMockIntsVisitor(t)
 	v := []int{1, 2, 3}
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1625,7 +1704,7 @@ func TestValueConstAnyInts(t *testing.T) {
 	visitor := newMockIntsVisitor(t)
 	v := []int{1, 2, 3}
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1634,7 +1713,7 @@ func TestValueInts8(t *testing.T) {
 	visitor := newMockInts8Visitor(t)
 	v := []int8{1, 2, 3}
 	value := Ints8(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1643,7 +1722,7 @@ func TestValueConstInts8(t *testing.T) {
 	visitor := newMockInts8Visitor(t)
 	v := []int8{1, 2, 3}
 	value := ConstInts8(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1651,7 +1730,7 @@ func TestValueConstInts8(t *testing.T) {
 func TestValueNilInts8(t *testing.T) {
 	visitor := newMockInts8Visitor(t)
 	value := Ints8(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []int8(nil), visitor.value)
 }
@@ -1660,7 +1739,7 @@ func TestValueAnyInts8(t *testing.T) {
 	visitor := newMockInts8Visitor(t)
 	v := []int8{1, 2, 3}
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1669,7 +1748,7 @@ func TestValueConstAnyInts8(t *testing.T) {
 	visitor := newMockInts8Visitor(t)
 	v := []int8{1, 2, 3}
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1678,7 +1757,7 @@ func TestValueInts16(t *testing.T) {
 	visitor := newMockInts16Visitor(t)
 	v := []int16{1, 2, 3}
 	value := Ints16(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1687,7 +1766,7 @@ func TestValueConstInts16(t *testing.T) {
 	visitor := newMockInts16Visitor(t)
 	v := []int16{1, 2, 3}
 	value := ConstInts16(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1695,7 +1774,7 @@ func TestValueConstInts16(t *testing.T) {
 func TestValueNilInts16(t *testing.T) {
 	visitor := newMockInts16Visitor(t)
 	value := Ints16(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []int16(nil), visitor.value)
 }
@@ -1704,7 +1783,7 @@ func TestValueAnyInts16(t *testing.T) {
 	visitor := newMockInts16Visitor(t)
 	v := []int16{1, 2, 3}
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1713,7 +1792,7 @@ func TestValueConstAnyInts16(t *testing.T) {
 	visitor := newMockInts16Visitor(t)
 	v := []int16{1, 2, 3}
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1722,7 +1801,7 @@ func TestValueInts32(t *testing.T) {
 	visitor := newMockInts32Visitor(t)
 	v := []int32{1, 2, 3}
 	value := Ints32(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1731,7 +1810,7 @@ func TestValueConstInts32(t *testing.T) {
 	visitor := newMockInts32Visitor(t)
 	v := []int32{1, 2, 3}
 	value := ConstInts32(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1739,7 +1818,7 @@ func TestValueConstInts32(t *testing.T) {
 func TestValueNilInts32(t *testing.T) {
 	visitor := newMockInts32Visitor(t)
 	value := Ints32(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []int32(nil), visitor.value)
 }
@@ -1748,7 +1827,7 @@ func TestValueAnyInts32(t *testing.T) {
 	visitor := newMockInts32Visitor(t)
 	v := []int32{1, 2, 3}
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1757,7 +1836,7 @@ func TestValueConstAnyInts32(t *testing.T) {
 	visitor := newMockInts32Visitor(t)
 	v := []int32{1, 2, 3}
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1766,7 +1845,7 @@ func TestValueInts64(t *testing.T) {
 	visitor := newMockInts64Visitor(t)
 	v := []int64{1, 2, 3}
 	value := Ints64(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1775,7 +1854,7 @@ func TestValueConstInts64(t *testing.T) {
 	visitor := newMockInts64Visitor(t)
 	v := []int64{1, 2, 3}
 	value := ConstInts64(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1783,7 +1862,7 @@ func TestValueConstInts64(t *testing.T) {
 func TestValueNilInts64(t *testing.T) {
 	visitor := newMockInts64Visitor(t)
 	value := Ints64(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []int64(nil), visitor.value)
 }
@@ -1792,7 +1871,7 @@ func TestValueAnyInts64(t *testing.T) {
 	visitor := newMockInts64Visitor(t)
 	v := []int64{1, 2, 3}
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1801,7 +1880,7 @@ func TestValueConstAnyInts64(t *testing.T) {
 	visitor := newMockInts64Visitor(t)
 	v := []int64{1, 2, 3}
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1810,7 +1889,7 @@ func TestValueUints(t *testing.T) {
 	visitor := newMockUintsVisitor(t)
 	v := []uint{1, 2, 3}
 	value := Uints(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1819,7 +1898,7 @@ func TestValueConstUints(t *testing.T) {
 	visitor := newMockUintsVisitor(t)
 	v := []uint{1, 2, 3}
 	value := Uints(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1827,7 +1906,7 @@ func TestValueConstUints(t *testing.T) {
 func TestValueNilUints(t *testing.T) {
 	visitor := newMockUintsVisitor(t)
 	value := Uints(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []uint(nil), visitor.value)
 }
@@ -1836,7 +1915,7 @@ func TestValueAnyUints(t *testing.T) {
 	visitor := newMockUintsVisitor(t)
 	v := []uint{1, 2, 3}
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1845,7 +1924,7 @@ func TestValueConstAnyUints(t *testing.T) {
 	visitor := newMockUintsVisitor(t)
 	v := []uint{1, 2, 3}
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1854,7 +1933,7 @@ func TestValueUints8(t *testing.T) {
 	visitor := newMockUints8Visitor(t)
 	v := []uint8{1, 2, 3}
 	value := Uints8(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1863,7 +1942,7 @@ func TestValueConstUints8(t *testing.T) {
 	visitor := newMockUints8Visitor(t)
 	v := []uint8{1, 2, 3}
 	value := ConstUints8(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1871,7 +1950,7 @@ func TestValueConstUints8(t *testing.T) {
 func TestValueNilUints8(t *testing.T) {
 	visitor := newMockUints8Visitor(t)
 	value := Uints8(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []uint8(nil), visitor.value)
 }
@@ -1880,7 +1959,7 @@ func TestValueAnyUints8(t *testing.T) {
 	visitor := newMockBytesVisitor(t)
 	v := []uint8{1, 2, 3}
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1889,7 +1968,7 @@ func TestValueConstAnyUints8(t *testing.T) {
 	visitor := newMockBytesVisitor(t)
 	v := []uint8{1, 2, 3}
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1898,7 +1977,7 @@ func TestValueUints16(t *testing.T) {
 	visitor := newMockUints16Visitor(t)
 	v := []uint16{1, 2, 3}
 	value := Uints16(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1907,7 +1986,7 @@ func TestValueConstUints16(t *testing.T) {
 	visitor := newMockUints16Visitor(t)
 	v := []uint16{1, 2, 3}
 	value := ConstUints16(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1915,7 +1994,7 @@ func TestValueConstUints16(t *testing.T) {
 func TestValueNilUints16(t *testing.T) {
 	visitor := newMockUints16Visitor(t)
 	value := Uints16(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []uint16(nil), visitor.value)
 }
@@ -1924,7 +2003,7 @@ func TestValueAnyUints16(t *testing.T) {
 	visitor := newMockUints16Visitor(t)
 	v := []uint16{1, 2, 3}
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1933,7 +2012,7 @@ func TestValueConstAnyUints16(t *testing.T) {
 	visitor := newMockUints16Visitor(t)
 	v := []uint16{1, 2, 3}
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1942,7 +2021,7 @@ func TestValueUints32(t *testing.T) {
 	visitor := newMockUints32Visitor(t)
 	v := []uint32{1, 2, 3}
 	value := Uints32(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1951,7 +2030,7 @@ func TestValueConstUints32(t *testing.T) {
 	visitor := newMockUints32Visitor(t)
 	v := []uint32{1, 2, 3}
 	value := ConstUints32(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1959,7 +2038,7 @@ func TestValueConstUints32(t *testing.T) {
 func TestValueNilUints32(t *testing.T) {
 	visitor := newMockUints32Visitor(t)
 	value := Uints32(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []uint32(nil), visitor.value)
 }
@@ -1968,7 +2047,7 @@ func TestValueAnyUints32(t *testing.T) {
 	visitor := newMockUints32Visitor(t)
 	v := []uint32{1, 2, 3}
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1977,7 +2056,7 @@ func TestValueConstAnyUints32(t *testing.T) {
 	visitor := newMockUints32Visitor(t)
 	v := []uint32{1, 2, 3}
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1986,7 +2065,7 @@ func TestValueUints64(t *testing.T) {
 	visitor := newMockUints64Visitor(t)
 	v := []uint64{1, 2, 3}
 	value := Uints64(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -1995,7 +2074,7 @@ func TestValueConstUints64(t *testing.T) {
 	visitor := newMockUints64Visitor(t)
 	v := []uint64{1, 2, 3}
 	value := ConstUints64(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2003,7 +2082,7 @@ func TestValueConstUints64(t *testing.T) {
 func TestValueNilUints64(t *testing.T) {
 	visitor := newMockUints64Visitor(t)
 	value := Uints64(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []uint64(nil), visitor.value)
 }
@@ -2012,7 +2091,7 @@ func TestValueAnyUints64(t *testing.T) {
 	visitor := newMockUints64Visitor(t)
 	v := []uint64{1, 2, 3}
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2021,7 +2100,7 @@ func TestValueConstAnyUints64(t *testing.T) {
 	visitor := newMockUints64Visitor(t)
 	v := []uint64{1, 2, 3}
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2030,7 +2109,7 @@ func TestValueBools(t *testing.T) {
 	visitor := newMockBoolsVisitor(t)
 	v := []bool{true, false}
 	value := Bools(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2039,7 +2118,7 @@ func TestValueConstBools(t *testing.T) {
 	visitor := newMockBoolsVisitor(t)
 	v := []bool{true, false}
 	value := ConstBools(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2047,7 +2126,7 @@ func TestValueConstBools(t *testing.T) {
 func TestValueNilBools(t *testing.T) {
 	visitor := newMockBoolsVisitor(t)
 	value := Bools(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []bool(nil), visitor.value)
 }
@@ -2056,7 +2135,7 @@ func TestValueAnyBools(t *testing.T) {
 	visitor := newMockBoolsVisitor(t)
 	v := []bool{true, false}
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2065,7 +2144,7 @@ func TestValueConstAnyBools(t *testing.T) {
 	visitor := newMockBoolsVisitor(t)
 	v := []bool{true, false}
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2074,7 +2153,7 @@ func TestValueFloats32(t *testing.T) {
 	visitor := newMockFloats32Visitor(t)
 	v := []float32{0.42, -0.42}
 	value := Floats32(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2083,7 +2162,7 @@ func TestValueConstFloats32(t *testing.T) {
 	visitor := newMockFloats32Visitor(t)
 	v := []float32{0.42, -0.42}
 	value := ConstFloats32(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2091,7 +2170,7 @@ func TestValueConstFloats32(t *testing.T) {
 func TestValueNilFloats32(t *testing.T) {
 	visitor := newMockFloats32Visitor(t)
 	value := Floats32(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []float32(nil), visitor.value)
 }
@@ -2100,7 +2179,7 @@ func TestValueAnyFloats32(t *testing.T) {
 	visitor := newMockFloats32Visitor(t)
 	v := []float32{0.42, -0.42}
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2109,7 +2188,7 @@ func TestValueConstAnyFloats32(t *testing.T) {
 	visitor := newMockFloats32Visitor(t)
 	v := []float32{0.42, -0.42}
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2118,7 +2197,7 @@ func TestValueFloats64(t *testing.T) {
 	visitor := newMockFloats64Visitor(t)
 	v := []float64{0.42, -0.42}
 	value := Floats64(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2127,7 +2206,7 @@ func TestValueConstFloats64(t *testing.T) {
 	visitor := newMockFloats64Visitor(t)
 	v := []float64{0.42, -0.42}
 	value := ConstFloats64(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2135,7 +2214,7 @@ func TestValueConstFloats64(t *testing.T) {
 func TestValueNilFloats64(t *testing.T) {
 	visitor := newMockFloats64Visitor(t)
 	value := Floats64(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []float64(nil), visitor.value)
 }
@@ -2144,7 +2223,7 @@ func TestValueAnyFloats64(t *testing.T) {
 	visitor := newMockFloats64Visitor(t)
 	v := []float64{0.42, -0.42}
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2153,7 +2232,7 @@ func TestValueConstAnyFloats64(t *testing.T) {
 	visitor := newMockFloats64Visitor(t)
 	v := []float64{0.42, -0.42}
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2162,7 +2241,7 @@ func TestValueStrings(t *testing.T) {
 	visitor := newMockStringsVisitor(t)
 	v := []string{"a", "b"}
 	value := Strings(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2171,7 +2250,7 @@ func TestValueConstStrings(t *testing.T) {
 	visitor := newMockStringsVisitor(t)
 	v := []string{"a", "b"}
 	value := ConstStrings(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2179,7 +2258,7 @@ func TestValueConstStrings(t *testing.T) {
 func TestValueNilStrings(t *testing.T) {
 	visitor := newMockStringsVisitor(t)
 	value := Strings(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []string(nil), visitor.value)
 }
@@ -2188,7 +2267,7 @@ func TestValueAnyStrings(t *testing.T) {
 	visitor := newMockStringsVisitor(t)
 	v := []string{"a", "b"}
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2197,7 +2276,7 @@ func TestValueConstAnyStrings(t *testing.T) {
 	visitor := newMockStringsVisitor(t)
 	v := []string{"a", "b"}
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2206,7 +2285,7 @@ func TestValueDurations(t *testing.T) {
 	visitor := newMockDurationsVisitor(t)
 	v := []time.Duration{time.Second, time.Hour}
 	value := Durations(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2215,7 +2294,7 @@ func TestValueConstDurations(t *testing.T) {
 	visitor := newMockDurationsVisitor(t)
 	v := []time.Duration{time.Second, time.Hour}
 	value := Durations(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2223,7 +2302,7 @@ func TestValueConstDurations(t *testing.T) {
 func TestValueNilDurations(t *testing.T) {
 	visitor := newMockDurationsVisitor(t)
 	value := Durations(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []time.Duration(nil), visitor.value)
 }
@@ -2232,7 +2311,7 @@ func TestValueAnyDurations(t *testing.T) {
 	visitor := newMockDurationsVisitor(t)
 	v := []time.Duration{time.Second, time.Hour}
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2241,7 +2320,7 @@ func TestValueConstAnyDurations(t *testing.T) {
 	visitor := newMockDurationsVisitor(t)
 	v := []time.Duration{time.Second, time.Hour}
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2250,7 +2329,7 @@ func TestValueArray(t *testing.T) {
 	visitor := newMockArrayVisitor(t)
 	v := []Value{Int(42), String("10")}
 	value := Array(mockArray(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2258,7 +2337,7 @@ func TestValueArray(t *testing.T) {
 func TestValueNilArray(t *testing.T) {
 	visitor := newMockArrayVisitor(t)
 	value := Array(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, []Value(nil), visitor.value)
 }
@@ -2267,7 +2346,7 @@ func TestValueAnyArray(t *testing.T) {
 	visitor := newMockArrayVisitor(t)
 	v := []Value{Int(42), String("10")}
 	value := Any(mockArray(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2276,7 +2355,7 @@ func TestValueConstAnyArray(t *testing.T) {
 	visitor := newMockArrayVisitor(t)
 	v := []Value{Int(42), String("10")}
 	value := ConstAny(mockArray(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2285,7 +2364,7 @@ func TestValueObject(t *testing.T) {
 	visitor := newMockObjectVisitor(t)
 	v := map[string]Value{"int": Int(42), "string": String("10")}
 	value := Object(mockObject(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, len(v), visitor.count)
 	require.Equal(t, v, visitor.value)
@@ -2294,7 +2373,7 @@ func TestValueObject(t *testing.T) {
 func TestValueNilObject(t *testing.T) {
 	visitor := newMockObjectVisitor(t)
 	value := Object(nil)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, 0, visitor.count)
 	require.Equal(t, map[string]Value(nil), visitor.value)
@@ -2304,7 +2383,7 @@ func TestValueAnyObject(t *testing.T) {
 	visitor := newMockObjectVisitor(t)
 	v := map[string]Value{"int": Int(42), "string": String("10")}
 	value := Any(mockObject(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, len(v), visitor.count)
 	require.Equal(t, v, visitor.value)
@@ -2314,7 +2393,7 @@ func TestValueConstAnyObject(t *testing.T) {
 	visitor := newMockObjectVisitor(t)
 	v := map[string]Value{"int": Int(42), "string": String("10")}
 	value := ConstAny(mockObject(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, len(v), visitor.count)
 	require.Equal(t, v, visitor.value)
@@ -2322,9 +2401,9 @@ func TestValueConstAnyObject(t *testing.T) {
 
 func TestCorruptedValue(t *testing.T) {
 	value := Value{bits: 255}
-	visitor := IgnoringVisitor{}
+	visitor := ignoringVisitor{}
 	require.Panics(t, func() {
-		value.AcceptVisitor(visitor)
+		value.acceptVisitor(visitor)
 	})
 }
 
@@ -2334,7 +2413,7 @@ func TestValueAnyCustomString(t *testing.T) {
 	v := "test"
 	visitor := newMockStringVisitor(t)
 	value := Any(customString(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2343,7 +2422,7 @@ func TestValueConstAnyCustomString(t *testing.T) {
 	v := "test"
 	visitor := newMockStringVisitor(t)
 	value := ConstAny(customString(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2354,7 +2433,7 @@ func TestValueAnyCustomBool(t *testing.T) {
 	v := true
 	visitor := newMockBoolVisitor(t)
 	value := Any(customBool(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2363,7 +2442,7 @@ func TestValueConstAnyCustomBool(t *testing.T) {
 	v := true
 	visitor := newMockBoolVisitor(t)
 	value := ConstAny(customBool(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2374,7 +2453,7 @@ func TestValueAnyCustomInt(t *testing.T) {
 	v := 42
 	visitor := newMockIntVisitor(t)
 	value := Any(customInt(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2383,7 +2462,7 @@ func TestValueConstAnyCustomInt(t *testing.T) {
 	v := 42
 	visitor := newMockIntVisitor(t)
 	value := ConstAny(customInt(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2394,7 +2473,7 @@ func TestValueAnyCustomInt8(t *testing.T) {
 	v := int8(42)
 	visitor := newMockInt8Visitor(t)
 	value := Any(customInt8(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2403,7 +2482,7 @@ func TestValueConstAnyCustomInt8(t *testing.T) {
 	v := int8(42)
 	visitor := newMockInt8Visitor(t)
 	value := ConstAny(customInt8(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2414,7 +2493,7 @@ func TestValueAnyCustomInt16(t *testing.T) {
 	v := int16(42)
 	visitor := newMockInt16Visitor(t)
 	value := Any(customInt16(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2423,7 +2502,7 @@ func TestValueConstAnyCustomInt16(t *testing.T) {
 	v := int16(42)
 	visitor := newMockInt16Visitor(t)
 	value := ConstAny(customInt16(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2434,7 +2513,7 @@ func TestValueAnyCustomInt32(t *testing.T) {
 	v := int32(42)
 	visitor := newMockInt32Visitor(t)
 	value := Any(customInt32(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2443,7 +2522,7 @@ func TestValueConstAnyCustomInt32(t *testing.T) {
 	v := int32(42)
 	visitor := newMockInt32Visitor(t)
 	value := ConstAny(customInt32(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2454,7 +2533,7 @@ func TestValueAnyCustomInt64(t *testing.T) {
 	v := int64(42)
 	visitor := newMockInt64Visitor(t)
 	value := Any(customInt64(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2463,7 +2542,7 @@ func TestValueConstAnyCustomInt64(t *testing.T) {
 	v := int64(42)
 	visitor := newMockInt64Visitor(t)
 	value := ConstAny(customInt64(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2474,7 +2553,7 @@ func TestValueAnyCustomUint(t *testing.T) {
 	v := uint(42)
 	visitor := newMockUintVisitor(t)
 	value := Any(customUint(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2483,7 +2562,7 @@ func TestValueConstAnyCustomUint(t *testing.T) {
 	v := uint(42)
 	visitor := newMockUintVisitor(t)
 	value := ConstAny(customUint(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2494,7 +2573,7 @@ func TestValueAnyCustomUint8(t *testing.T) {
 	v := uint8(42)
 	visitor := newMockUint8Visitor(t)
 	value := Any(customUint8(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2503,7 +2582,7 @@ func TestValueConstAnyCustomUint8(t *testing.T) {
 	v := uint8(42)
 	visitor := newMockUint8Visitor(t)
 	value := ConstAny(customUint8(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2514,7 +2593,7 @@ func TestValueAnyCustomUint16(t *testing.T) {
 	v := uint16(42)
 	visitor := newMockUint16Visitor(t)
 	value := Any(customUint16(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2523,7 +2602,7 @@ func TestValueConstAnyCustomUint16(t *testing.T) {
 	v := uint16(42)
 	visitor := newMockUint16Visitor(t)
 	value := ConstAny(customUint16(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2534,7 +2613,7 @@ func TestValueAnyCustomUint32(t *testing.T) {
 	v := uint32(42)
 	visitor := newMockUint32Visitor(t)
 	value := Any(customUint32(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2543,7 +2622,7 @@ func TestValueConstAnyCustomUint32(t *testing.T) {
 	v := uint32(42)
 	visitor := newMockUint32Visitor(t)
 	value := ConstAny(customUint32(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2554,7 +2633,7 @@ func TestValueAnyCustomUint64(t *testing.T) {
 	v := uint64(42)
 	visitor := newMockUint64Visitor(t)
 	value := Any(customUint64(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2563,7 +2642,7 @@ func TestValueConstAnyCustomUint64(t *testing.T) {
 	v := uint64(42)
 	visitor := newMockUint64Visitor(t)
 	value := ConstAny(customUint64(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2574,7 +2653,7 @@ func TestValueAnyCustomFloat32(t *testing.T) {
 	v := float32(0.42)
 	visitor := newMockFloat32Visitor(t)
 	value := Any(customFloat32(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2583,7 +2662,7 @@ func TestValueConstAnyCustomFloat32(t *testing.T) {
 	v := float32(0.42)
 	visitor := newMockFloat32Visitor(t)
 	value := ConstAny(customFloat32(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2594,7 +2673,7 @@ func TestValueAnyCustomFloat64(t *testing.T) {
 	v := float64(0.42)
 	visitor := newMockFloat64Visitor(t)
 	value := Any(customFloat64(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2603,7 +2682,7 @@ func TestValueConstAnyCustomFloat64(t *testing.T) {
 	v := float64(0.42)
 	visitor := newMockFloat64Visitor(t)
 	value := ConstAny(customFloat64(v))
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2614,7 +2693,7 @@ func TestValueAnyEmptyStruct(t *testing.T) {
 	v := emptyStruct{}
 	visitor := newMockAnyVisitor(t)
 	value := Any(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
@@ -2623,7 +2702,7 @@ func TestValueConstAnyEmptyStruct(t *testing.T) {
 	v := emptyStruct{}
 	visitor := newMockAnyVisitor(t)
 	value := ConstAny(v)
-	value.AcceptVisitor(visitor)
+	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }

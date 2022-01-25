@@ -379,21 +379,21 @@ var snapshotTests = []snapshotTestSpec{
 		},
 	},
 	{
-		Name: "Formatter",
+		Name: "Formattable",
 		Generate: func() (Value, Value, func()) {
 			v := new(int)
 			*v = 42
-			return FormatterRepr(v), String(fmt.Sprintf("%#v", v)), func() {
+			return FormattableRepr(v), String(fmt.Sprintf("%#v", v)), func() {
 				*v = 21
 			}
 		},
 	},
 	{
-		Name: "ConstFormatter",
+		Name: "ConstFormattable",
 		Generate: func() (Value, Value, func()) {
 			v := new(int)
 			*v = 42
-			return ConstFormatterRepr(v), ConstFormatterRepr(v), func() {
+			return ConstFormattableRepr(v), ConstFormattableRepr(v), func() {
 				*v = 21
 			}
 		},
@@ -442,7 +442,7 @@ var snapshotTests = []snapshotTestSpec{
 		},
 		ExtraCheck: func(t *testing.T, actual, golden *Value) {
 			visitor := newMockArrayVisitor(t)
-			actual.AcceptVisitor(visitor)
+			actual.acceptVisitor(visitor)
 			require.Equal(t, true, visitor.visited)
 			require.Equal(t, 2, len(visitor.value))
 			require.Equal(t, Int(42), visitor.value[0])
@@ -465,6 +465,23 @@ var snapshotTests = []snapshotTestSpec{
 		},
 	},
 	{
+		Name: "ArraySnapshotter",
+		Generate: func() (Value, Value, func()) {
+			v := mockArraySnapshotter{Int(42), String("test")}
+			return Array(v), ConstArray(mockArraySnapshotter([]Value{Int(42), String("test")})), func() {
+				v[1] = String("other")
+			}
+		},
+		ExtraCheck: func(t *testing.T, actual, golden *Value) {
+			visitor := newMockArrayVisitor(t)
+			actual.acceptVisitor(visitor)
+			require.Equal(t, true, visitor.visited)
+			require.Equal(t, 2, len(visitor.value))
+			require.Equal(t, Int(42), visitor.value[0])
+			require.Equal(t, String("test"), visitor.value[1])
+		},
+	},
+	{
 		Name: "Object",
 		Generate: func() (Value, Value, func()) {
 			v := mockObject{"int": Int(42), "string": String("test")}
@@ -474,7 +491,7 @@ var snapshotTests = []snapshotTestSpec{
 		},
 		ExtraCheck: func(t *testing.T, actual, golden *Value) {
 			visitor := newMockObjectVisitor(t)
-			actual.AcceptVisitor(visitor)
+			actual.acceptVisitor(visitor)
 			require.Equal(t, true, visitor.visited)
 			require.Equal(t, 2, len(visitor.value))
 			require.Equal(t, Int(42), visitor.value["int"])
@@ -497,6 +514,24 @@ var snapshotTests = []snapshotTestSpec{
 		Generate: func() (Value, Value, func()) {
 			return Object(nil), ConstObject(nil), func() {}
 		},
+	},
+	{
+		Name: "ObjectSnapshotter",
+		Generate: func() (Value, Value, func()) {
+			v := mockObjectSnapshotter{"int": Int(42), "string": String("test")}
+			return Object(v), Value{}, func() {
+				v["string"] = String("other")
+			}
+		},
+		ExtraCheck: func(t *testing.T, actual, golden *Value) {
+			visitor := newMockObjectVisitor(t)
+			actual.acceptVisitor(visitor)
+			require.Equal(t, true, visitor.visited)
+			require.Equal(t, 2, len(visitor.value))
+			require.Equal(t, Int(42), visitor.value["int"])
+			require.Equal(t, String("test"), visitor.value["string"])
+		},
+		SkipValueCheck: true,
 	},
 	{
 		Name:       "CorruptedValue",
