@@ -902,9 +902,11 @@ func TestValueConstAnyBool(t *testing.T) {
 }
 
 func BenchmarkValueBoolConstruction(b *testing.B) {
+	var r Value
 	for i := 0; i != b.N; i++ {
-		_ = Bool(true)
+		r = Bool(true)
 	}
+	avoidOptimization(r)
 }
 
 func TestValueInt(t *testing.T) {
@@ -938,9 +940,11 @@ func TestValueConstAnyInt(t *testing.T) {
 }
 
 func BenchmarkValueIntConstruction(b *testing.B) {
+	var r Value
 	for i := 0; i != b.N; i++ {
-		_ = Int(42)
+		r = Int(42)
 	}
+	avoidOptimization(r)
 }
 
 func TestValueInt8(t *testing.T) {
@@ -974,9 +978,11 @@ func TestValueConstAnyInt8(t *testing.T) {
 }
 
 func BenchmarkValueInt8Construction(b *testing.B) {
+	var r Value
 	for i := 0; i != b.N; i++ {
-		_ = Int8(42)
+		r = Int8(42)
 	}
+	avoidOptimization(r)
 }
 func TestValueInt16(t *testing.T) {
 	visitor := newMockInt16Visitor(t)
@@ -1009,9 +1015,19 @@ func TestValueConstAnyInt16(t *testing.T) {
 }
 
 func BenchmarkValueInt16Construction(b *testing.B) {
+	var r Value
 	for i := 0; i != b.N; i++ {
-		_ = Int16(42)
+		r = Int16(42)
 	}
+	avoidOptimization(r)
+}
+
+func BenchmarkValueAnyInt16Construction(b *testing.B) {
+	var r Value
+	for i := 0; i != b.N; i++ {
+		r = Any(int16(42))
+	}
+	avoidOptimization(r)
 }
 
 func TestValueInt32(t *testing.T) {
@@ -1045,9 +1061,11 @@ func TestValueConstAnyInt32(t *testing.T) {
 }
 
 func BenchmarkValueInt32Construction(b *testing.B) {
+	var r Value
 	for i := 0; i != b.N; i++ {
-		_ = Int32(42)
+		r = Int32(42)
 	}
+	avoidOptimization(r)
 }
 
 func TestValueInt64(t *testing.T) {
@@ -1081,9 +1099,11 @@ func TestValueConstAnyInt64(t *testing.T) {
 }
 
 func BenchmarkValueInt64Construction(b *testing.B) {
+	var r Value
 	for i := 0; i != b.N; i++ {
-		_ = Int64(42)
+		r = Int64(42)
 	}
+	avoidOptimization(r)
 }
 
 func TestValueUint(t *testing.T) {
@@ -1117,9 +1137,11 @@ func TestValueConstAnyUint(t *testing.T) {
 }
 
 func BenchmarkValueUintConstruction(b *testing.B) {
+	var r Value
 	for i := 0; i != b.N; i++ {
-		_ = Uint(42)
+		r = Uint(42)
 	}
+	avoidOptimization(r)
 }
 
 func TestValueUint8(t *testing.T) {
@@ -1153,9 +1175,11 @@ func TestValueConstAnyUint8(t *testing.T) {
 }
 
 func BenchmarkValueUint8Construction(b *testing.B) {
+	var r Value
 	for i := 0; i != b.N; i++ {
-		_ = Uint8(42)
+		r = Uint8(42)
 	}
+	avoidOptimization(r)
 }
 
 func TestValueUint16(t *testing.T) {
@@ -1189,9 +1213,11 @@ func TestValueConstAnyUint16(t *testing.T) {
 }
 
 func BenchmarkValueUint16Construction(b *testing.B) {
+	var r Value
 	for i := 0; i != b.N; i++ {
-		_ = Uint16(42)
+		r = Uint16(42)
 	}
+	avoidOptimization(r)
 }
 
 func TestValueUint32(t *testing.T) {
@@ -1225,9 +1251,11 @@ func TestValueConstAnyUint32(t *testing.T) {
 }
 
 func BenchmarkValueUint32Construction(b *testing.B) {
+	var r Value
 	for i := 0; i != b.N; i++ {
-		_ = Uint32(42)
+		r = Uint32(42)
 	}
+	avoidOptimization(r)
 }
 
 func TestValueUint64(t *testing.T) {
@@ -1261,9 +1289,11 @@ func TestValueConstAnyUint64(t *testing.T) {
 }
 
 func BenchmarkValueUint64Construction(b *testing.B) {
+	var r Value
 	for i := 0; i != b.N; i++ {
-		_ = Uint64(42)
+		r = Uint64(42)
 	}
+	avoidOptimization(r)
 }
 
 func TestValueFloat32(t *testing.T) {
@@ -1297,9 +1327,11 @@ func TestValueConstAnyFloat32(t *testing.T) {
 }
 
 func BenchmarkValueFloat32Construction(b *testing.B) {
+	var r Value
 	for i := 0; i != b.N; i++ {
-		_ = Float32(0.42)
+		r = Float32(0.42)
 	}
+	avoidOptimization(r)
 }
 
 func TestValueFloat64(t *testing.T) {
@@ -1333,9 +1365,11 @@ func TestValueConstAnyFloat64(t *testing.T) {
 }
 
 func BenchmarkValueFloat64Construction(b *testing.B) {
+	var r Value
 	for i := 0; i != b.N; i++ {
-		_ = Float64(0.42)
+		r = Float64(0.42)
 	}
+	avoidOptimization(r)
 }
 
 func TestValueString(t *testing.T) {
@@ -1372,9 +1406,11 @@ func TestValueConstAnyString(t *testing.T) {
 }
 
 func BenchmarkValueStringConstruction(b *testing.B) {
+	var r Value
 	for i := 0; i != b.N; i++ {
-		_ = String("test")
+		r = String("test")
 	}
+	avoidOptimization(r)
 }
 
 func TestValueStringer(t *testing.T) {
@@ -1432,9 +1468,11 @@ func TestValueConstAnyStringer(t *testing.T) {
 }
 
 func BenchmarkValueStringerConstruction(b *testing.B) {
+	var r Value
 	for i := 0; i != b.N; i++ {
-		_ = Stringer(testStringer("test"))
+		r = Stringer(testStringer("test"))
 	}
+	avoidOptimization(r)
 }
 
 func TestValueFormattable(t *testing.T) {
@@ -1494,9 +1532,11 @@ func TestValueConstAnyDuration(t *testing.T) {
 }
 
 func BenchmarkValueDurationConstruction(b *testing.B) {
+	var r Value
 	for i := 0; i != b.N; i++ {
-		_ = Duration(time.Second)
+		r = Duration(time.Second)
 	}
+	avoidOptimization(r)
 }
 
 func TestValueTime(t *testing.T) {
@@ -1548,10 +1588,12 @@ func TestValueConstAnyTime(t *testing.T) {
 }
 
 func BenchmarkValueTimeConstruction(b *testing.B) {
+	var r Value
 	now := time.Now()
 	for i := 0; i != b.N; i++ {
-		_ = Time(now)
+		r = Time(now)
 	}
+	avoidOptimization(r)
 }
 
 func TestValueError(t *testing.T) {
@@ -1659,10 +1701,12 @@ func TestValueConstAnyNil(t *testing.T) {
 }
 
 func BenchmarkValueErrorConstruction(b *testing.B) {
+	var r Value
 	err := errors.New("some error")
 	for i := 0; i != b.N; i++ {
-		_ = Error(err)
+		r = Error(err)
 	}
+	avoidOptimization(r)
 }
 
 func TestValueInts(t *testing.T) {
@@ -1707,6 +1751,15 @@ func TestValueConstAnyInts(t *testing.T) {
 	value.acceptVisitor(visitor)
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
+}
+
+func BenchmarkValueIntsConstruction(b *testing.B) {
+	var r Value
+	v := []int{1, 2, 3}
+	for i := 0; i != b.N; i++ {
+		r = Ints(v)
+	}
+	avoidOptimization(r)
 }
 
 func TestValueInts8(t *testing.T) {
@@ -2706,3 +2759,11 @@ func TestValueConstAnyEmptyStruct(t *testing.T) {
 	require.Equal(t, true, visitor.visited)
 	require.Equal(t, v, visitor.value)
 }
+
+func avoidOptimization(v Value) {
+	if v.Type() == TypeNone && v.Type() == TypeAny {
+		testValuePlaceholder = v
+	}
+}
+
+var testValuePlaceholder Value
