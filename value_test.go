@@ -45,6 +45,28 @@ func (a mockArray) AcceptArrayItemVisitor(visitor ArrayItemVisitor) {
 	}
 }
 
+type efficientMockArray struct {
+	v []int
+}
+
+func (a *efficientMockArray) ArrayItemCount() int {
+	return len(a.v)
+}
+
+func (a *efficientMockArray) AcceptArrayItemVisitor(visitor ArrayItemVisitor) {
+	for i, value := range a.v {
+		visitor.VisitArrayItem(i, Int(value))
+	}
+}
+
+type efficientMockArrayWithSnapshot struct {
+	efficientMockArray
+}
+
+func (a *efficientMockArrayWithSnapshot) TakeSnapshot() interface{} {
+	return &efficientMockArrayWithSnapshot{efficientMockArray{append([]int{}, a.v...)}}
+}
+
 type mockArraySnapshotter []Value
 
 func (a mockArraySnapshotter) ArrayItemCount() int {
@@ -94,8 +116,12 @@ func (o mockObjectSnapshotter) TakeSnapshot() interface{} {
 	return cc
 }
 
+type stdLogger interface {
+	Fatal(args ...interface{})
+}
+
 type mockVisitor struct {
-	t *testing.T
+	t stdLogger
 }
 
 func (v mockVisitor) VisitNone() {
@@ -809,7 +835,7 @@ func (v *mockDurationsVisitor) VisitDurations(value []time.Duration) {
 	v.visited = true
 }
 
-func newMockArrayVisitor(t *testing.T) *mockArrayVisitor {
+func newMockArrayVisitor(t stdLogger) *mockArrayVisitor {
 	return &mockArrayVisitor{mockVisitor: mockVisitor{t}}
 }
 
@@ -1755,9 +1781,19 @@ func TestValueConstAnyInts(t *testing.T) {
 
 func BenchmarkValueIntsConstruction(b *testing.B) {
 	var r Value
-	v := []int{1, 2, 3}
+	v := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for i := 0; i != b.N; i++ {
 		r = Ints(v)
+	}
+	avoidOptimization(r)
+}
+
+func BenchmarkValueIntsSnapshot(b *testing.B) {
+	var r Value
+	v := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	for i := 0; i != b.N; i++ {
+		r = Ints(v)
+		Snapshot(&r)
 	}
 	avoidOptimization(r)
 }
@@ -2413,6 +2449,48 @@ func TestValueConstAnyArray(t *testing.T) {
 	require.Equal(t, v, visitor.value)
 }
 
+func BenchmarkValueArray(b *testing.B) {
+	b.Run("Construction", func(b *testing.B) {
+		v := []int{42, 43, 44}
+		a := &efficientMockArray{v}
+		var r Value
+		for i := 0; i != b.N; i++ {
+			r = Array(a)
+		}
+		avoidOptimization(r)
+	})
+	b.Run("Snapshot", func(b *testing.B) {
+		v := []int{42, 43, 44}
+		a := Array(&efficientMockArray{v})
+		var r Value
+		for i := 0; i != b.N; i++ {
+			r = a
+			Snapshot(&r)
+		}
+		avoidOptimization(r)
+	})
+	b.Run("ConstSnapshot", func(b *testing.B) {
+		v := []int{42, 43, 44}
+		a := ConstArray(&efficientMockArray{v})
+		var r Value
+		for i := 0; i != b.N; i++ {
+			r = a
+			Snapshot(&r)
+		}
+		avoidOptimization(r)
+	})
+	b.Run("CustomSnapshot", func(b *testing.B) {
+		v := []int{42, 43, 44}
+		a := Array(&efficientMockArrayWithSnapshot{efficientMockArray{v}})
+		var r Value
+		for i := 0; i != b.N; i++ {
+			r = a
+			Snapshot(&r)
+		}
+		avoidOptimization(r)
+	})
+}
+
 func TestValueObject(t *testing.T) {
 	visitor := newMockObjectVisitor(t)
 	v := map[string]Value{"int": Int(42), "string": String("10")}
@@ -2761,9 +2839,17 @@ func TestValueConstAnyEmptyStruct(t *testing.T) {
 }
 
 func avoidOptimization(v Value) {
-	if v.Type() == TypeNone && v.Type() == TypeAny {
-		testValuePlaceholder = v
+	if v.Type() != TypeNone {
+		testValuePlaceholder.Consume(v)
 	}
 }
 
-var testValuePlaceholder Value
+type testValueConsumer interface {
+	Consume(Value)
+}
+
+var testValuePlaceholder testValueConsumer = nilValueConsumer{}
+
+type nilValueConsumer struct{}
+
+func (c nilValueConsumer) Consume(Value) {}
