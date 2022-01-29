@@ -35,28 +35,21 @@ func (f *mockFormatter) Format(s fmt.State, c rune) {
 
 type mockArray []Value
 
-func (a mockArray) ArrayItemCount() int {
-	return len(a)
-}
-
-func (a mockArray) AcceptArrayItemVisitor(visitor ArrayItemVisitor) {
-	for i, value := range a {
-		visitor.VisitArrayItem(i, value)
-	}
+func (a mockArray) ValfReadArray() []Value {
+	return a
 }
 
 type efficientMockArray struct {
 	v []int
 }
 
-func (a *efficientMockArray) ArrayItemCount() int {
-	return len(a.v)
-}
-
-func (a *efficientMockArray) AcceptArrayItemVisitor(visitor ArrayItemVisitor) {
-	for i, value := range a.v {
-		visitor.VisitArrayItem(i, Int(value))
+func (a *efficientMockArray) ValfReadArray() []Value {
+	result := make([]Value, len(a.v))
+	for i := range a.v {
+		result[i] = Int(a.v[i])
 	}
+
+	return result
 }
 
 type efficientMockArrayWithSnapshot struct {
@@ -69,14 +62,8 @@ func (a *efficientMockArrayWithSnapshot) TakeSnapshot() interface{} {
 
 type mockArraySnapshotter []Value
 
-func (a mockArraySnapshotter) ArrayItemCount() int {
-	return len(a)
-}
-
-func (a mockArraySnapshotter) AcceptArrayItemVisitor(visitor ArrayItemVisitor) {
-	for i, value := range a {
-		visitor.VisitArrayItem(i, value)
-	}
+func (a mockArraySnapshotter) ValfReadArray() []Value {
+	return a
 }
 
 func (a mockArraySnapshotter) TakeSnapshot() interface{} {
@@ -85,14 +72,13 @@ func (a mockArraySnapshotter) TakeSnapshot() interface{} {
 
 type mockObject map[string]Value
 
-func (o mockObject) ObjectFieldCount() int {
-	return len(o)
-}
-
-func (o mockObject) AcceptObjectFieldVisitor(visitor ObjectFieldVisitor) {
-	for key, value := range o {
-		visitor.VisitObjectField(key, value)
+func (o mockObject) ValfReadObject() []Field {
+	result := make([]Field, 0, len(o))
+	for k, v := range o {
+		result = append(result, NewField(k, v))
 	}
+
+	return result
 }
 
 type mockObjectSnapshotter map[string]Value
@@ -101,10 +87,13 @@ func (o mockObjectSnapshotter) ObjectFieldCount() int {
 	return len(o)
 }
 
-func (o mockObjectSnapshotter) AcceptObjectFieldVisitor(visitor ObjectFieldVisitor) {
-	for key, value := range o {
-		visitor.VisitObjectField(key, value)
+func (o mockObjectSnapshotter) ValfReadObject() []Field {
+	result := make([]Field, 0, len(o))
+	for k, v := range o {
+		result = append(result, NewField(k, v))
 	}
+
+	return result
 }
 
 func (o mockObjectSnapshotter) TakeSnapshot() interface{} {
@@ -264,11 +253,11 @@ func (v mockVisitor) VisitDurations([]time.Duration) {
 	v.t.Fatal("unexpected function call")
 }
 
-func (v mockVisitor) VisitArray(ValueArray) {
+func (v mockVisitor) VisitArray(ArrayReader) {
 	v.t.Fatal("unexpected function call")
 }
 
-func (v mockVisitor) VisitObject(ValueObject) {
+func (v mockVisitor) VisitObject(ObjectReader) {
 	v.t.Fatal("unexpected function call")
 }
 
@@ -845,16 +834,11 @@ type mockArrayVisitor struct {
 	visited bool
 }
 
-func (v *mockArrayVisitor) VisitArray(array ValueArray) {
+func (v *mockArrayVisitor) VisitArray(array ArrayReader) {
 	if array != nil {
-		v.value = make([]Value, array.ArrayItemCount())
-		array.AcceptArrayItemVisitor(v)
+		v.value = array.ValfReadArray()
 	}
 	v.visited = true
-}
-
-func (v *mockArrayVisitor) VisitArrayItem(index int, value Value) {
-	v.value[index] = value
 }
 
 func newMockObjectVisitor(t *testing.T) *mockObjectVisitor {
@@ -868,17 +852,17 @@ type mockObjectVisitor struct {
 	visited bool
 }
 
-func (v *mockObjectVisitor) VisitObject(object ValueObject) {
+func (v *mockObjectVisitor) VisitObject(object ObjectReader) {
 	if object != nil {
-		v.value = map[string]Value{}
-		v.count = object.ObjectFieldCount()
-		object.AcceptObjectFieldVisitor(v)
+		items := object.ValfReadObject()
+		value := make(map[string]Value, len(items))
+		for _, item := range items {
+			value[item.key] = item.value
+		}
+		v.count = len(items)
+		v.value = value
 	}
 	v.visited = true
-}
-
-func (v *mockObjectVisitor) VisitObjectField(key string, value Value) {
-	v.value[key] = value
 }
 
 func TestValueNone(t *testing.T) {

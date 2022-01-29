@@ -320,8 +320,8 @@ func Time(v time.Time) Value {
 	return Value{bits: bits(TypeTime) | bitsConst, vInt: v.UnixNano(), vAny: v.Location()}
 }
 
-// Array returns a new Value with the given ArrayEncoder.
-func Array(v ValueArray) Value {
+// Array returns a new Value with the given ArrayReader.
+func Array(v ArrayReader) Value {
 	if v == nil {
 		return ConstArray(v)
 	}
@@ -329,13 +329,13 @@ func Array(v ValueArray) Value {
 	return Value{bits: bits(TypeArray), vAny: v}
 }
 
-// ConstArray returns a new Value with the given ArrayEncoder.
-func ConstArray(v ValueArray) Value {
+// ConstArray returns a new Value with the given ArrayReader.
+func ConstArray(v ArrayReader) Value {
 	return Value{bits: bits(TypeArray) | bitsConst, vAny: v}
 }
 
-// Object returns a new Value with the given ObjectEncoder.
-func Object(v ValueObject) Value {
+// Object returns a new Value with the given ObjectReader.
+func Object(v ObjectReader) Value {
 	if v == nil {
 		return ConstObject(v)
 	}
@@ -343,8 +343,8 @@ func Object(v ValueObject) Value {
 	return Value{bits: bits(TypeObject), vAny: v}
 }
 
-// ConstObject returns a new Value with the given ObjectEncoder.
-func ConstObject(v ValueObject) Value {
+// ConstObject returns a new Value with the given ObjectReader.
+func ConstObject(v ObjectReader) Value {
 	return Value{bits: bits(TypeObject) | bitsConst, vAny: v}
 }
 
@@ -439,9 +439,9 @@ func Any(v interface{}) Value {
 		return Duration(rv)
 	case error:
 		return Error(rv)
-	case ValueArray:
+	case ArrayReader:
 		return Array(rv)
-	case ValueObject:
+	case ObjectReader:
 		return Object(rv)
 	case []byte:
 		return Bytes(rv)
@@ -555,9 +555,9 @@ func ConstAny(v interface{}) Value {
 		return Duration(rv)
 	case error:
 		return Error(rv)
-	case ValueArray:
+	case ArrayReader:
 		return ConstArray(rv)
-	case ValueObject:
+	case ObjectReader:
 		return ConstObject(rv)
 	case []byte:
 		return ConstBytes(rv)
@@ -658,6 +658,11 @@ func (v Value) Snapshot() Value {
 	return v
 }
 
+// Field returns a field with the given key and the value.
+func (v Value) Field(key string) Field {
+	return NewField(key, v)
+}
+
 // Any returns value in case Type is TypeAny.
 func (v Value) Any() interface{} {
 	return v.vAny
@@ -748,21 +753,21 @@ func (v Value) Time() time.Time {
 }
 
 // Array returns value in case Type is TypeArray.
-func (v Value) Array() ValueArray {
+func (v Value) Array() ArrayReader {
 	if v.vAny == nil {
 		return nil
 	}
 
-	return v.vAny.(ValueArray)
+	return v.vAny.(ArrayReader)
 }
 
 // Object returns value in case Type is TypeObject.
-func (v Value) Object() ValueObject {
+func (v Value) Object() ObjectReader {
 	if v.vAny == nil {
 		return nil
 	}
 
-	return v.vAny.(ValueObject)
+	return v.vAny.(ObjectReader)
 }
 
 // Stringer returns value in case Type is TypeStringer.

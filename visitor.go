@@ -45,8 +45,8 @@ type visitor interface {
 	VisitFloats32([]float32)
 	VisitFloats64([]float64)
 	VisitDurations([]time.Duration)
-	VisitArray(ValueArray)
-	VisitObject(ValueObject)
+	VisitArray(ArrayReader)
+	VisitObject(ObjectReader)
 }
 
 // ignoringVisitor is an implementation of Visitor interface which does nothing.
@@ -158,10 +158,10 @@ func (v ignoringVisitor) VisitFloats64([]float64) {}
 func (v ignoringVisitor) VisitDurations([]time.Duration) {}
 
 // VisitArray does nothing.
-func (v ignoringVisitor) VisitArray(ValueArray) {}
+func (v ignoringVisitor) VisitArray(ArrayReader) {}
 
 // VisitObject does nothing.
-func (v ignoringVisitor) VisitObject(ValueObject) {}
+func (v ignoringVisitor) VisitObject(ObjectReader) {}
 
 // VisitStringer does nothing.
 func (v ignoringVisitor) VisitStringer(fmt.Stringer) {}

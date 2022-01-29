@@ -215,73 +215,34 @@ func snapshotArray(v *Value) {
 	if snapshotter, ok := v.vAny.(Snapshotter); ok {
 		*v = ConstAny(snapshotter.TakeSnapshot())
 	} else {
-		a := v.vAny.(ValueArray)
-		s := arraySnapshotter{arraySnapshot{make([]Value, a.ArrayItemCount())}}
-		a.AcceptArrayItemVisitor(&s)
-		v.vAny = s.snapshot
+		items := append([]Value{}, v.vAny.(ArrayReader).ValfReadArray()...)
+		v.vAny = arraySnapshot{items}
 		v.bits |= bitsConst
 	}
-}
-
-type arraySnapshotter struct {
-	snapshot arraySnapshot
-}
-
-func (s *arraySnapshotter) VisitArrayItem(index int, value Value) {
-	Snapshot(&value)
-	s.snapshot.items[index] = value
 }
 
 type arraySnapshot struct {
 	items []Value
 }
 
-func (s arraySnapshot) ArrayItemCount() int {
-	return len(s.items)
-}
-
-func (s arraySnapshot) AcceptArrayItemVisitor(visitor ArrayItemVisitor) {
-	for i, v := range s.items {
-		visitor.VisitArrayItem(i, v)
-	}
-}
-
-type objectField struct {
-	Name  string
-	Value Value
+func (s arraySnapshot) ValfReadArray() []Value {
+	return s.items
 }
 
 func snapshotObject(v *Value) {
 	if snapshotter, ok := v.vAny.(Snapshotter); ok {
 		*v = ConstAny(snapshotter.TakeSnapshot())
 	} else {
-		o := v.vAny.(ValueObject)
-		s := objectSnapshotter{objectSnapshot{make([]objectField, 0, o.ObjectFieldCount())}}
-		o.AcceptObjectFieldVisitor(&s)
-		v.vAny = s.snapshot
+		items := append([]Field{}, v.vAny.(ObjectReader).ValfReadObject()...)
+		v.vAny = objectSnapshot{items}
 		v.bits |= bitsConst
 	}
 }
 
-type objectSnapshotter struct {
-	snapshot objectSnapshot
-}
-
-func (s *objectSnapshotter) VisitObjectField(name string, value Value) {
-	Snapshot(&value)
-	s.snapshot.fields = append(s.snapshot.fields, objectField{name, value})
-}
-
 type objectSnapshot struct {
-	fields []objectField
+	fields []Field
 }
 
-func (s objectSnapshot) ObjectFieldCount() int {
-	return len(s.fields)
-}
-
-func (s objectSnapshot) AcceptObjectFieldVisitor(visitor ObjectFieldVisitor) {
-	for _, field := range s.fields {
-		visitor.VisitObjectField(field.Name, field.Value)
-	}
+func (s objectSnapshot) ValfReadObject() []Field {
+	return s.fields
 }
