@@ -550,7 +550,7 @@ func (s *testMutableStringer) String() string {
 
 type testSnapshotter []int
 
-func (s testSnapshotter) TakeSnapshot() interface{} {
+func (s testSnapshotter) ValfSnapshot() interface{} {
 	cc := make([]int, len(s))
 	copy(cc, s)
 

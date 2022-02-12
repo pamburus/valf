@@ -56,7 +56,7 @@ type efficientMockArrayWithSnapshot struct {
 	efficientMockArray
 }
 
-func (a *efficientMockArrayWithSnapshot) TakeSnapshot() interface{} {
+func (a *efficientMockArrayWithSnapshot) ValfSnapshot() interface{} {
 	return &efficientMockArrayWithSnapshot{efficientMockArray{append([]int{}, a.v...)}}
 }
 
@@ -66,7 +66,7 @@ func (a mockArraySnapshotter) ValfReadArray() []Value {
 	return a
 }
 
-func (a mockArraySnapshotter) TakeSnapshot() interface{} {
+func (a mockArraySnapshotter) ValfSnapshot() interface{} {
 	return mockArraySnapshotter(append([]Value{}, a...))
 }
 
@@ -96,7 +96,7 @@ func (o mockObjectSnapshotter) ValfReadObject() []Field {
 	return result
 }
 
-func (o mockObjectSnapshotter) TakeSnapshot() interface{} {
+func (o mockObjectSnapshotter) ValfSnapshot() interface{} {
 	cc := make(mockObjectSnapshotter, len(o))
 	for k, v := range o {
 		cc[k] = v

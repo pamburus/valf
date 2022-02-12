@@ -9,7 +9,7 @@ import (
 
 // Snapshotter is the interface that allows to do a custom snapshotting strategy of a value.
 type Snapshotter interface {
-	TakeSnapshot() interface{}
+	ValfSnapshot() interface{}
 }
 
 // Snapshot changes the v so that it can be safely stored for a long with guarantee that it won't be modified.
@@ -208,12 +208,12 @@ func snapshotAny(v *Value) {
 		panic(errors.New("valf: cannot snapshot value with type Any since it does not implement Snapshotter interface"))
 	}
 
-	*v = ConstAny(snapshotter.TakeSnapshot())
+	*v = ConstAny(snapshotter.ValfSnapshot())
 }
 
 func snapshotArray(v *Value) {
 	if snapshotter, ok := v.vAny.(Snapshotter); ok {
-		*v = ConstAny(snapshotter.TakeSnapshot())
+		*v = ConstAny(snapshotter.ValfSnapshot())
 	} else {
 		items := append([]Value{}, v.vAny.(ArrayReader).ValfReadArray()...)
 		v.vAny = arraySnapshot{items}
@@ -231,7 +231,7 @@ func (s arraySnapshot) ValfReadArray() []Value {
 
 func snapshotObject(v *Value) {
 	if snapshotter, ok := v.vAny.(Snapshotter); ok {
-		*v = ConstAny(snapshotter.TakeSnapshot())
+		*v = ConstAny(snapshotter.ValfSnapshot())
 	} else {
 		items := append([]Field{}, v.vAny.(ObjectReader).ValfReadObject()...)
 		v.vAny = objectSnapshot{items}
