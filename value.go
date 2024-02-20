@@ -956,12 +956,17 @@ func (v Value) acceptVisitor(visitor visitor) {
 
 // ---
 
-type bits byte
+type bits uint16
 
 const (
-	bitsMaskType bits = (1 << 7) - 1
-	bitsConst    bits = 1 << 7
+	bitsMaskKind bits = (1 << 5) - 1
+	bitsMaskSize bits = bitsSigned
+	bitsConst    bits = 1 << 15
 )
+
+func (b bits) Kind() Kind {
+	return Kind(b & bitsMaskKind)
+}
 
 func (b bits) Type() Type {
 	return Type(b & bitsMaskType)
